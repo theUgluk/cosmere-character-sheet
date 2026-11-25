@@ -1,0 +1,348 @@
+/* Modal shell and picker modal styles: shared modal chrome, expertise picker, weapon/armor/item picker, and portrait lightbox. */
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2em;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    width: 40px;
+    height: 40px;
+}
+
+.modal-close:hover {
+    color: var(--danger-color);
+}
+
+.expertise-tab {
+    padding: 6px 12px;
+    border: 2px solid var(--border-color);
+    background: var(--card-bg, #fff);
+    border-radius: 16px;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: var(--text-color);
+}
+.expertise-tab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+.expertise-option {
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    transition: background 0.15s ease;
+}
+.expertise-option:hover {
+    background: var(--accent-color, #f0f0f0);
+}
+.expertise-option.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.expertise-option-name {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.expertise-option-effect {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+.expertise-option-tag {
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: var(--accent-color, #eee);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.portrait-lightbox {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.portrait-lightbox.active {
+    display: flex;
+}
+
+.portrait-lightbox img {
+    width: 94vw;
+    height: 94vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.portrait-lightbox-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 2em;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 5px 12px;
+    line-height: 1;
+}
+
+.portrait-lightbox-close:hover {
+    color: var(--accent-color);
+    transform: none;
+    box-shadow: none;
+}
+
+.weapon-selection-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.weapon-option {
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+
+.weapon-option:hover {
+    border-color: var(--primary-color);
+    background: #f0f8ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.weapon-option-name {
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 4px;
+}
+
+.weapon-option-stats {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+/* Shared Application Dialog (alert, confirm, prompt, form) */
+.app-dialog-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.65);
+    z-index: 10050;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.app-dialog-overlay.active {
+    display: flex;
+}
+
+.app-dialog-content {
+    background: var(--bg-secondary, #ffffff);
+    color: var(--text-primary, #333);
+    border-radius: 10px;
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    border-top: 4px solid var(--primary-color);
+}
+
+.app-dialog-content.is-wide {
+    max-width: 600px;
+}
+
+.app-dialog-content.variant-warning {
+    border-top-color: #ff9800;
+}
+
+.app-dialog-content.variant-error {
+    border-top-color: var(--danger-color);
+}
+
+.app-dialog-content.variant-success {
+    border-top-color: var(--success-color);
+}
+
+.app-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.app-dialog-header h2 {
+    margin: 0;
+    font-size: 1.25em;
+    color: var(--primary-color);
+}
+
+.app-dialog-content.variant-warning .app-dialog-header h2 {
+    color: #c77700;
+}
+
+.app-dialog-content.variant-error .app-dialog-header h2 {
+    color: var(--danger-color);
+}
+
+.app-dialog-content.variant-success .app-dialog-header h2 {
+    color: #2e7d32;
+}
+
+.app-dialog-message {
+    white-space: pre-line;
+    line-height: 1.5;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    font-size: 0.95em;
+}
+
+.app-dialog-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.app-dialog-fields.cols-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.app-dialog-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.app-dialog-field.full-width {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 540px) {
+    .app-dialog-fields.cols-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.app-dialog-field label {
+    font-size: 0.88em;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.app-dialog-field input,
+.app-dialog-field textarea,
+.app-dialog-field select {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 0.95em;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: #fff;
+}
+
+.app-dialog-field input:focus,
+.app-dialog-field textarea:focus,
+.app-dialog-field select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(44, 90, 160, 0.15);
+}
+
+.app-dialog-error {
+    color: var(--danger-color);
+    background: rgba(244, 67, 54, 0.08);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-size: 0.88em;
+    margin-bottom: 14px;
+}
+
+.app-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.app-dialog-btn-primary {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+.app-dialog-btn-secondary {
+    background-color: #e0e0e0;
+    color: var(--text-primary);
+}
+
+.app-dialog-btn-secondary:hover {
+    background-color: #d2d2d2;
+}

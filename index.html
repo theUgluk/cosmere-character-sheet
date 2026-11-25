@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmere RPG Character Sheet</title>
+
+    <!-- Optional Mobile Debug Console (async so offline file:// never blocks render) -->
+    <script async src="https://cdn.jsdelivr.net/npm/eruda"></script>
+
+    <!-- Stylesheets (ordered to preserve cascade specificity) -->
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/sheet.css">
+    <link rel="stylesheet" href="styles/modals.css">
+    <link rel="stylesheet" href="styles/dice-roller.css">
+    <link rel="stylesheet" href="styles/combat-play.css">
+    <link rel="stylesheet" href="styles/layout-overrides.css">
+</head>
+<body>
+    <!-- Mobile Debug Display -->
+    <div id="mobileDebug" style="display: none; position: fixed; top: 0; left: 0; right: 0; background: #ff4444; color: white; padding: 10px; z-index: 9999; font-size: 12px; max-height: 200px; overflow-y: auto;">
+        <strong>Debug Info:</strong>
+        <div id="debugContent"></div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>Cosmere RPG Character Sheet</h1>
+            <p>Stormlight Archive - Plotweaver System v1.01</p>
+            <div class="header-controls">
+                <button onclick="app.createNewCharacter()">✨ New Character</button>
+                <button onclick="app.exportToFile()">📥 Export JSON</button>
+                <div class="pdf-export-control">
+                    <select id="pdfExportMode" aria-label="PDF sheet type">
+                        <option value="full">Full sheet</option>
+                        <option value="simplified">Simplified</option>
+                    </select>
+                    <button onclick="app.exportToPdf()">📄 Export PDF</button>
+                </div>
+                <button onclick="app.importFromFile()">📤 Import</button>
+                <button class="danger" onclick="app.deleteCurrentCharacter()">🗑️ Delete Character</button>
+                <label style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9em;">
+                    <input type="checkbox" id="debugToggle" onchange="mobileDebug.toggle(this.checked)" style="cursor: pointer;">
+                    <span>🐛 Debug Info</span>
+                </label>
+            </div>
+        </header>
+
+        <div id="characterListSection" class="character-list">
+            <h2>Your Characters</h2>
+            <div id="characterListItems" class="character-list-items"></div>
+        </div>
+
+        <div id="characterSheetSection" class="sheet-container hidden">
+            <div class="level-section">
+                <div class="level-display">
+                    Total Level <span id="characterLevel">0</span>
+                    <span id="characterCompleteBadge" class="character-complete-badge incomplete">Incomplete</span>
+                </div>
+                <div>Tier: <span id="characterTier">Local Heroes</span></div>
+                <div id="pathLevelsDisplay" style="margin: 10px 0; font-size: 0.9em;"></div>
+                <div id="talentPointsDisplay" style="margin: 10px 0; font-size: 0.9em; padding: 8px; background: #f0f8ff; border-radius: 4px; border: 1px solid #d0e8ff; color: #333;">
+                    <strong>💎 Talent Points:</strong> <span id="talentPoints">0 available</span>
+                </div>
+            </div>
+
+            <!-- ===== COMBAT & PLAY SECTION (Optimized for Tablets) ===== -->
+            <div class="combat-play-section" id="combatPlaySection">
+                <div class="combat-play-header collapsed" onclick="app.toggleCombatPlay()">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <img id="playPortrait" class="play-portrait" style="display: none;" alt="Portrait" onclick="event.stopPropagation(); app.openPortraitLightbox(this.src)">
+                        <h2 style="margin: 0;">⚔️ Combat & Play</h2>
+                    </div>
+                    <span class="collapse-indicator">▼</span>
+                </div>
+                
+                <div class="combat-play-content collapsed" id="combatPlayContent">
+                    <!-- Quick Stats Grid -->
+                    <div class="play-grid">
+                        <!-- Attributes Card -->
+                        <div class="play-card">
+                            <div class="play-card-header">⚡ Attributes</div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">STR</span>
+                                <span class="play-stat-value">
+                                    <span id="playStrength">2</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttribute('strength', document.getElementById('strength').value)" title="Roll Strength test">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">SPD</span>
+                                <span class="play-stat-value">
+                                    <span id="playSpeed">2</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttribute('speed', document.getElementById('speed').value)" title="Roll Speed test">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">INT</span>
+                                <span class="play-stat-value">
+                                    <span id="playIntellect">2</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttribute('intellect', document.getElementById('intellect').value)" title="Roll Intellect test">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">WIL</span>
+                                <span class="play-stat-value">
+                                    <span id="playWillpower">2</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttribute('willpower', document.getElementById('willpower').value)" title="Roll Willpower test">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">AWR</span>
+                                <span class="play-stat-value">
+                                    <span id="playAwareness">2</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttribute('awareness', document.getElementById('awareness').value)" title="Roll Awareness test">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">PRE</span>
+                                <span class="play-stat-value">
+                                    <span id="playPresence">2</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttribute('presence', document.getElementById('presence').value)" title="Roll Presence test">🎲</button>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Defenses & Combat Stats Card -->
+                        <div class="play-card">
+                            <div class="play-card-header">🛡️ Defenses & Combat</div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Physical Def</span>
+                                <span class="play-stat-value">
+                                    <span id="playPhysicalDefense">14</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollDefense('Physical Defense', document.getElementById('physicalDefense').textContent)" title="Roll">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Cognitive Def</span>
+                                <span class="play-stat-value">
+                                    <span id="playCognitiveDefense">14</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollDefense('Cognitive Defense', document.getElementById('cognitiveDefense').textContent)" title="Roll">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Spiritual Def</span>
+                                <span class="play-stat-value">
+                                    <span id="playSpiritualDefense">14</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollDefense('Spiritual Defense', document.getElementById('spiritualDefense').textContent)" title="Roll">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Initiative</span>
+                                <span class="play-stat-value">
+                                    <span id="playInitiative">+2</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollInitiative(document.getElementById('initiative').textContent)" title="Roll Initiative">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Melee Attack</span>
+                                <span class="play-stat-value">
+                                    <span id="playMeleeAttack">+4</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttack('Melee', document.getElementById('meleeAttack').textContent)" title="Roll Melee Attack">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Ranged Attack</span>
+                                <span class="play-stat-value">
+                                    <span id="playRangedAttack">+4</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollAttack('Ranged', document.getElementById('rangedAttack').textContent)" title="Roll Ranged Attack">🎲</button>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Resources Card -->
+                        <div class="play-card">
+                            <div class="play-card-header">💎 Resources</div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Health</span>
+                                <span class="play-stat-value">
+                                    <input type="number" id="playCurrentHealth" min="0" style="width: 50px; text-align: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 4px; color: white; padding: 4px;" onchange="document.getElementById('currentHealth').value = this.value; app.updateCharacter()">
+                                    <span>/</span>
+                                    <span id="playMaxHealth">16</span>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Focus</span>
+                                <span class="play-stat-value">
+                                    <input type="number" id="playCurrentFocus" min="0" style="width: 50px; text-align: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 4px; color: white; padding: 4px;" onchange="document.getElementById('currentFocus').value = this.value; app.updateCharacter()">
+                                    <span>/</span>
+                                    <span id="playMaxFocus">8</span>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Investiture</span>
+                                <span class="play-stat-value">
+                                    <input type="number" id="playCurrentInvestiture" min="0" style="width: 50px; text-align: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 4px; color: white; padding: 4px;" onchange="document.getElementById('currentInvestiture').value = this.value; app.updateCharacter()">
+                                    <span>/</span>
+                                    <span id="playMaxInvestiture">4</span>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Deflect</span>
+                                <span class="play-stat-value" id="playDeflect">0</span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Recovery Die</span>
+                                <span class="play-stat-value">
+                                    <span id="playRecoveryDie">1d6</span>
+                                    <button class="play-dice-btn" onclick="diceRoller.rollRecovery(document.getElementById('recoveryDie').textContent)" title="Roll Recovery Die">🎲</button>
+                                </span>
+                            </div>
+                            <div class="play-stat-row">
+                                <span class="play-stat-label">Movement</span>
+                                <span class="play-stat-value" id="playMovement">40 ft</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Skills Section -->
+                    <div class="collapsible-section" style="margin-top: 15px;">
+                        <div class="collapsible-header" onclick="app.toggleSection('playSkills')">
+                            <h3>📚 Skills</h3>
+                            <span class="collapse-indicator" id="playSkillsIndicator">▼</span>
+                        </div>
+                        <div class="collapsible-content" id="playSkillsContent">
+                            <div id="playSkillsList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Weapons Section -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" onclick="app.toggleSection('playWeapons')">
+                            <h3>⚔️ Weapons</h3>
+                            <span class="collapse-indicator" id="playWeaponsIndicator">▼</span>
+                        </div>
+                        <div class="collapsible-content" id="playWeaponsContent">
+                            <div id="playWeaponsList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Collapsible Actions Section -->
+                    <div class="collapsible-section">
+                        <div class="collapsible-header" onclick="app.toggleSection('playActions')">
+                            <h3>🎯 Combat Actions</h3>
+                            <span class="collapse-indicator" id="playActionsIndicator">▼</span>
+                        </div>
+                        <div class="collapsible-content" id="playActionsContent">
+                            <div class="action-list">
+                                <!-- Actions (1-3 actions) -->
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Strike
+                                    </div>
+                                    <div class="action-description">Attack with unarmed or wielded weapon. Can use once per hand per turn (offhand costs 2 focus).</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Move
+                                    </div>
+                                    <div class="action-description">Move up to your movement rate. Slowed if crawling, climbing, swimming, or being stealthy.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Interact
+                                    </div>
+                                    <div class="action-description">Open door, pick up item, draw/sheathe weapon, pass item to ally, etc. No skill test usually required.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Use a Skill
+                                    </div>
+                                    <div class="action-description">Use any skill for challenging tasks: Perception to search, Stealth to hide, Medicine to treat, etc.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Brace
+                                    </div>
+                                    <div class="action-description">Hide behind cover within 5 ft. Attacks against you gain disadvantage until you move or attack.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Disengage
+                                    </div>
+                                    <div class="action-description">Move 5 feet without triggering Reactive Strikes.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Gain Advantage
+                                    </div>
+                                    <div class="action-description">Make a skill test against enemy's defense. On success, gain advantage on your next test using a different skill.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Shove
+                                    </div>
+                                    <div class="action-description">Athletics test vs target's Physical defense. On success, push or pull them 5 feet horizontally.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●</span>
+                                        Grapple
+                                    </div>
+                                    <div class="action-description">Athletics test vs target's Physical defense. On success, they're Restrained until you're Unconscious, you release them, or they escape your reach.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">● +varies</span>
+                                        Ready
+                                    </div>
+                                    <div class="action-description">Prepare an action for a trigger. Costs the Ready action plus the action you're preparing.</div>
+                                </div>
+                                <div class="action-item">
+                                    <div class="action-name">
+                                        <span class="action-cost">●●</span>
+                                        Recover
+                                    </div>
+                                    <div class="action-description">Roll your recovery die to restore health and/or focus. Can only use once per scene.</div>
+                                </div>
+                                
+                                <!-- Free Actions -->
+                                <div class="action-item free">
+                                    <div class="action-name">
+                                        <span class="action-cost">FREE</span>
+                                        Banter
+                                    </div>
+                                    <div class="action-description">Speak briefly (couple sentences). For longer speech or persuasion, Use a Skill.</div>
+                                </div>
+                                <div class="action-item free">
+                                    <div class="action-name">
+                                        <span class="action-cost">FREE</span>
+                                        Drop
+                                    </div>
+                                    <div class="action-description">Drop any number of objects you're holding.</div>
+                                </div>
+                                
+                                <!-- Reactions -->
+                                <div class="action-item reaction">
+                                    <div class="action-name">
+                                        <span class="action-cost">⚡ REACTION</span>
+                                        Aid
+                                    </div>
+                                    <div class="action-description">Spend 1 focus to grant an ally advantage on their test. Must be in range to assist.</div>
+                                </div>
+                                <div class="action-item reaction">
+                                    <div class="action-name">
+                                        <span class="action-cost">⚡ REACTION</span>
+                                        Avoid Danger
+                                    </div>
+                                    <div class="action-description">Agility test to dodge environmental hazard (falling boulder, shove, etc). DC 15 or attacker's test result.</div>
+                                </div>
+                                <div class="action-item reaction">
+                                    <div class="action-name">
+                                        <span class="action-cost">⚡ REACTION</span>
+                                        Dodge
+                                    </div>
+                                    <div class="action-description">Spend 1 focus to add disadvantage to an enemy's attack test against you. Can't use on area attacks.</div>
+                                </div>
+                                <div class="action-item reaction">
+                                    <div class="action-name">
+                                        <span class="action-cost">⚡ REACTION</span>
+                                        Reactive Strike
+                                    </div>
+                                    <div class="action-description">When enemy leaves your reach, spend 1 focus to make a melee weapon attack. Doesn't work on teleportation.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== CHARACTER BUILDING SECTION ===== -->
+            <div class="character-building">
+
+            <nav class="tab-bar" role="tablist">
+                <button type="button" class="tab-button active" data-tab="identity" onclick="app.switchTab('identity')">👤 Identity</button>
+                <button type="button" class="tab-button" data-tab="stats" onclick="app.switchTab('stats')">💪 Stats &amp; Skills</button>
+                <button type="button" class="tab-button" data-tab="combat" onclick="app.switchTab('combat')">⚔️ Combat &amp; Resources</button>
+                <button type="button" class="tab-button" data-tab="paths" onclick="app.switchTab('paths')">✨ Paths &amp; Talents</button>
+                <button type="button" class="tab-button" data-tab="story" onclick="app.switchTab('story')">📖 Story</button>
+            </nav>
+
+            <div class="tab-pane active" id="tab-identity">
+            <!-- Character Details Section -->
+            <div class="section-header collapsed" id="characterDetailsHeader" onclick="app.toggleSection('characterDetails')">
+                <h2>👤 Character Details</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="characterDetailsContent">
+                <div class="character-details-section">
+                    <!-- Point Trackers -->
+                    <div class="point-tracker">
+                        <div class="point-tracker-header">
+                            <div class="point-tracker-title">Attribute Points</div>
+                            <div class="point-tracker-values">
+                                <span class="points-used" id="attributePointsUsed">0</span>
+                                <span>/</span>
+                                <span class="points-total" id="attributePointsTotal">12</span>
+                                <span class="points-remaining" id="attributePointsRemaining">12 remaining</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="attributeProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="help-text">Starting characters have 12 attribute points to distribute (minimum 0, maximum 5 per attribute)</div>
+                    </div>
+
+                    <div class="point-tracker">
+                        <div class="point-tracker-header">
+                            <div class="point-tracker-title">Skill Ranks</div>
+                            <div class="point-tracker-values">
+                                <span class="points-used" id="skillRanksUsed">0</span>
+                                <span>/</span>
+                                <span class="points-total" id="skillRanksTotal">0</span>
+                                <span class="points-remaining" id="skillRanksRemaining">0 remaining</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="skillProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="help-text">Skill ranks are gained through leveling and your chosen path</div>
+                    </div>
+
+                    <div class="point-tracker">
+                        <div class="point-tracker-header">
+                            <div class="point-tracker-title">Talent Points</div>
+                            <div class="point-tracker-values">
+                                <span class="points-used" id="talentPointsUsed">0</span>
+                                <span>/</span>
+                                <span class="points-total" id="talentPointsTotal">0</span>
+                                <span class="points-remaining" id="talentPointsRemaining">0 remaining</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="talentProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="help-text" id="talentPointsBreakdown">Talents gained through leveling and ancestry bonuses</div>
+                    </div>
+
+                    <div id="validationSummary" class="validation-summary"></div>
+
+                    <!-- Basic Information -->
+                    <div class="sheet-header">
+                        <div class="input-group">
+                            <label>Character Name</label>
+                            <input type="text" id="characterName" placeholder="Enter name..." oninput="app.updateCharacter(); app.recalculateAll();">
+                        </div>
+                        <div class="input-group">
+                            <label>Player Name</label>
+                            <input type="text" id="playerName" placeholder="Your name..." onchange="app.updateCharacter()">
+                        </div>
+                        <div class="input-group">
+                            <label>Ancestry</label>
+                            <select id="ancestry" onchange="app.updateCharacter()"></select>
+                        </div>
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 20px;">
+                        <label>Culture</label>
+                        <select id="culture" onchange="app.updateCharacter()"></select>
+                    </div>
+
+                    <!-- Portrait & Physical Details -->
+                    <div class="portrait-container">
+                        <div>
+                            <div class="portrait-frame" id="portraitFrame" onclick="app.handlePortraitClick()">
+                                <div class="portrait-placeholder" id="portraitPlaceholder">
+                                    <span class="portrait-placeholder-icon">📷</span>
+                                    Click to upload
+                                </div>
+                                <img id="portraitImage" style="display: none;" alt="Character Portrait">
+                            </div>
+                            <input type="file" id="portraitInput" accept="image/*" style="display: none;" onchange="app.uploadPortrait(event)">
+                            <div class="portrait-actions">
+                                <button onclick="document.getElementById('portraitInput').click()" style="font-size: 0.75em; padding: 4px 8px;">Upload</button>
+                                <button onclick="app.removePortrait()" class="danger" style="font-size: 0.75em; padding: 4px 8px;">Remove</button>
+                            </div>
+                        </div>
+                        <div style="flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-content: start;">
+                            <div class="input-group">
+                                <label>Age</label>
+                                <input type="text" id="characterAge" placeholder="25" onchange="app.updateCharacter()">
+                            </div>
+                            <div class="input-group">
+                                <label>Gender/Pronouns</label>
+                                <input type="text" id="characterGender" placeholder="She/Her" onchange="app.updateCharacter()">
+                            </div>
+                            <div class="input-group">
+                                <label>Height</label>
+                                <input type="text" id="characterHeight" placeholder="5'8\"" onchange="app.updateCharacter()">
+                            </div>
+                            <div class="input-group">
+                                <label>Weight</label>
+                                <input type="text" id="characterWeight" placeholder="140 lbs" onchange="app.updateCharacter()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 15px;">
+                        <label>Languages</label>
+                        <div id="languagesCheckboxes" style="display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 4px;"></div>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                            <input type="text" id="customLanguage" placeholder="Other language..." style="flex: 1; max-width: 200px;">
+                            <button onclick="app.addCustomLanguage()" style="font-size: 0.8em; padding: 6px 12px;">+ Add</button>
+                        </div>
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 15px;">
+                        <label>Physical Appearance</label>
+                        <textarea id="characterAppearance" placeholder="Describe your character's appearance, distinguishing features, typical clothing, etc." 
+                                  onchange="app.updateCharacter()" style="min-height: 80px;"></textarea>
+                    </div>
+
+                    <div class="input-group" style="margin-bottom: 15px;">
+                        <label>Backstory</label>
+                        <textarea id="characterBackstory" placeholder="Your character's history, important life events, motivations, fears, etc." 
+                                  onchange="app.updateCharacter()" style="min-height: 100px;"></textarea>
+                    </div>
+                </div>
+            </div><!-- End characterDetailsContent -->
+            </div><!-- /tab-identity -->
+
+            <div class="tab-pane" id="tab-stats">
+            <!-- Attributes & Skills Section -->
+            <div class="section-header collapsed" id="attributesSkillsHeader" onclick="app.toggleSection('attributesSkills')">
+                <h2>💪 Attributes & Skills</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="attributesSkillsContent">
+                <div class="stats-grid">
+                    <div class="stat-column physical">
+                        <h3>Physical</h3>
+                    
+                    <div class="attribute-box">
+                        <div class="attribute-row">
+                            <div class="attribute-label">Strength</div>
+                            <div style="display: flex; align-items: center;">
+                                <input type="number" class="attribute-value" id="strength" min="0" max="5" value="2" oninput="app.updateAttributeValue('strength', this.value)">
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollAttribute('strength', document.getElementById('strength').value)"
+                                        title="Roll Strength test">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="attribute-box">
+                        <div class="attribute-row">
+                            <div class="attribute-label">Speed</div>
+                            <div style="display: flex; align-items: center;">
+                                <input type="number" class="attribute-value" id="speed" min="0" max="5" value="2" oninput="app.updateAttributeValue('speed', this.value)">
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollAttribute('speed', document.getElementById('speed').value)"
+                                        title="Roll Speed test">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="defense-box">
+                        <div class="defense-row">
+                            <div class="defense-label">Physical Defense</div>
+                            <div style="display: flex; align-items: center;">
+                                <div class="defense-value auto-calc" id="physicalDefense">14</div>
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollDefense('Physical Defense', document.getElementById('physicalDefense').textContent)"
+                                        title="Roll against Physical Defense">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="skills-section">
+                        <h4 style="margin-bottom: 10px;">Physical Skills</h4>
+                        <div id="physicalSkills"></div>
+                    </div>
+                </div>
+
+                <div class="stat-column cognitive">
+                    <h3>Cognitive</h3>
+                    
+                    <div class="attribute-box">
+                        <div class="attribute-row">
+                            <div class="attribute-label">Intellect</div>
+                            <div style="display: flex; align-items: center;">
+                                <input type="number" class="attribute-value" id="intellect" min="0" max="5" value="2" oninput="app.updateAttributeValue('intellect', this.value)">
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollAttribute('intellect', document.getElementById('intellect').value)"
+                                        title="Roll Intellect test">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="attribute-box">
+                        <div class="attribute-row">
+                            <div class="attribute-label">Willpower</div>
+                            <div style="display: flex; align-items: center;">
+                                <input type="number" class="attribute-value" id="willpower" min="0" max="5" value="2" oninput="app.updateAttributeValue('willpower', this.value)">
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollAttribute('willpower', document.getElementById('willpower').value)"
+                                        title="Roll Willpower test">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="defense-box">
+                        <div class="defense-row">
+                            <div class="defense-label">Cognitive Defense</div>
+                            <div style="display: flex; align-items: center;">
+                                <div class="defense-value auto-calc" id="cognitiveDefense">14</div>
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollDefense('Cognitive Defense', document.getElementById('cognitiveDefense').textContent)"
+                                        title="Roll against Cognitive Defense">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="skills-section">
+                        <h4 style="margin-bottom: 10px;">Cognitive Skills</h4>
+                        <div id="cognitiveSkills"></div>
+                    </div>
+                </div>
+
+                <div class="stat-column spiritual">
+                    <h3>Spiritual</h3>
+                    
+                    <div class="attribute-box">
+                        <div class="attribute-row">
+                            <div class="attribute-label">Awareness</div>
+                            <div style="display: flex; align-items: center;">
+                                <input type="number" class="attribute-value" id="awareness" min="0" max="5" value="2" oninput="app.updateAttributeValue('awareness', this.value)">
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollAttribute('awareness', document.getElementById('awareness').value)"
+                                        title="Roll Awareness test">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="attribute-box">
+                        <div class="attribute-row">
+                            <div class="attribute-label">Presence</div>
+                            <div style="display: flex; align-items: center;">
+                                <input type="number" class="attribute-value" id="presence" min="0" max="5" value="2" oninput="app.updateAttributeValue('presence', this.value)">
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollAttribute('presence', document.getElementById('presence').value)"
+                                        title="Roll Presence test">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="defense-box">
+                        <div class="defense-row">
+                            <div class="defense-label">Spiritual Defense</div>
+                            <div style="display: flex; align-items: center;">
+                                <div class="defense-value auto-calc" id="spiritualDefense">14</div>
+                                <button class="inline-dice-btn" 
+                                        onclick="diceRoller.rollDefense('Spiritual Defense', document.getElementById('spiritualDefense').textContent)"
+                                        title="Roll against Spiritual Defense">🎲</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="skills-section">
+                        <h4 style="margin-bottom: 10px;">Spiritual Skills</h4>
+                        <div id="spiritualSkills"></div>
+                    </div>
+                </div>
+                </div>
+            </div><!-- End attributesSkillsContent -->
+            </div><!-- /tab-stats -->
+
+            <div class="tab-pane" id="tab-combat">
+            <!-- Defenses & Resources Section -->
+            <div class="section-header collapsed" id="resourcesHeader" onclick="app.toggleSection('resources')">
+                <h2>🛡️ Defenses & Resources</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="resourcesContent">
+                <div class="resources-section">
+                    <div class="resource-box">
+                        <div class="resource-label">Health</div>
+                    <div class="resource-values">
+                        <input type="number" class="resource-current" id="currentHealth" min="0" onchange="app.updateCharacter()">
+                        <span>/</span>
+                        <div class="resource-max auto-calc" id="maxHealth">16</div>
+                    </div>
+                </div>
+
+                <div class="resource-box">
+                    <div class="resource-label">Focus</div>
+                    <div class="resource-values">
+                        <input type="number" class="resource-current" id="currentFocus" min="0" onchange="app.updateCharacter()">
+                        <span>/</span>
+                        <div class="resource-max auto-calc" id="maxFocus">8</div>
+                    </div>
+                </div>
+
+                <div class="resource-box">
+                    <div class="resource-label">Investiture</div>
+                    <div class="resource-values">
+                        <input type="number" class="resource-current" id="currentInvestiture" min="0" onchange="app.updateCharacter()">
+                        <span>/</span>
+                        <div class="resource-max auto-calc" id="maxInvestiture">4</div>
+                    </div>
+                </div>
+
+                <div class="resource-box">
+                    <div class="resource-label">Deflect</div>
+                    <div class="resource-values">
+                        <input type="number" class="resource-current" id="deflect" min="0" onchange="app.updateCharacter()">
+                    </div>
+                </div>
+
+                <div class="resource-box">
+                    <div class="resource-label">Recovery Die</div>
+                    <div class="resource-values" style="flex-direction: column; gap: 10px;">
+                        <div class="resource-max auto-calc" id="recoveryDie">1d6</div>
+                        <button class="inline-dice-btn large" 
+                                onclick="diceRoller.rollRecovery(document.getElementById('recoveryDie').textContent)"
+                                title="Roll Recovery Die"
+                                style="margin: 0 auto;">🎲 Roll</button>
+                    </div>
+                </div>
+
+                <div class="resource-box">
+                    <div class="resource-label">Movement</div>
+                    <div class="resource-values">
+                        <div class="resource-max auto-calc" id="movement">40 ft</div>
+                    </div>
+                </div>
+
+                <div class="resource-box">
+                    <div class="resource-label">Senses Range</div>
+                    <div class="resource-values">
+                        <div class="resource-max auto-calc" id="sensesRange">80 ft</div>
+                    </div>
+                </div>
+
+                <div class="resource-box">
+                    <div class="resource-label">Lifting Capacity</div>
+                    <div class="resource-values">
+                        <div class="resource-max auto-calc" id="liftingCapacity">200 lbs</div>
+                    </div>
+                </div>
+                </div>
+            </div><!-- End resourcesContent -->
+
+            <!-- Equipment & Combat Section -->
+            <div class="section-header collapsed" id="equipmentHeader" onclick="app.toggleSection('equipment')">
+                <h2>⚔️ Equipment & Combat</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="equipmentContent">
+                <div class="equipment-section">
+                
+                <!-- Starting Kit Selection -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid var(--primary-color);">
+                    <h3 style="margin-top: 0;">Starting Kit</h3>
+                    <div style="display: grid; gap: 10px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <label style="min-width: 100px;">Select Kit:</label>
+                            <select id="startingKit" onchange="app.selectStartingKit(this.value)" style="flex: 1;">
+                                <option value="">-- Choose a Starting Kit --</option>
+                            </select>
+                        </div>
+                        <div id="startingKitDetails" style="display: none; padding: 10px; background: white; border-radius: 4px; font-size: 0.9em;">
+                            <!-- Kit details will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Attack Bonuses -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="resource-box">
+                        <div class="resource-label">Melee Attack</div>
+                        <div class="resource-values">
+                            <div class="resource-max auto-calc" id="meleeAttack">+4</div>
+                            <button class="inline-dice-btn" 
+                                    onclick="diceRoller.rollAttack('Melee', document.getElementById('meleeAttack').textContent)"
+                                    title="Roll melee attack">🎲</button>
+                        </div>
+                    </div>
+                    <div class="resource-box">
+                        <div class="resource-label">Ranged Attack</div>
+                        <div class="resource-values">
+                            <div class="resource-max auto-calc" id="rangedAttack">+4</div>
+                            <button class="inline-dice-btn" 
+                                    onclick="diceRoller.rollAttack('Ranged', document.getElementById('rangedAttack').textContent)"
+                                    title="Roll ranged attack">🎲</button>
+                        </div>
+                    </div>
+                    <div class="resource-box">
+                        <div class="resource-label">Initiative</div>
+                        <div class="resource-values">
+                            <div class="resource-max auto-calc" id="initiative">+2</div>
+                            <button class="inline-dice-btn" 
+                                    onclick="diceRoller.rollInitiative(document.getElementById('initiative').textContent)"
+                                    title="Roll initiative">🎲</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Equipped Gear Summary -->
+                <h3>⚔️ Equipped Gear</h3>
+                <div id="equippedSummary"></div>
+
+                <!-- Currency -->
+                <h3 style="margin-top: 25px;">💎 Spheres (Currency)</h3>
+                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                    <div class="currency-input">
+                        <label>Chips (0.05 mk)</label>
+                        <input type="number" id="chips" min="0" value="0" onchange="app.updateCurrency()">
+                    </div>
+                    <div class="currency-input">
+                        <label>Marks (1 mk)</label>
+                        <input type="number" id="marks" min="0" value="0" onchange="app.updateCurrency()">
+                    </div>
+                    <div class="currency-input">
+                        <label>Broams (20 mk)</label>
+                        <input type="number" id="broams" min="0" value="0" onchange="app.updateCurrency()">
+                    </div>
+                    <div style="margin-left: auto; padding: 15px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 8px; color: #333; font-weight: bold;">
+                        <div style="font-size: 0.85em;">Total Worth</div>
+                        <div style="font-size: 1.3em;"><span id="totalMarks">0</span> marks</div>
+                    </div>
+                </div>
+
+                <!-- Unified Inventory -->
+                <h3 style="margin-top: 25px;">🎒 Inventory</h3>
+                <div id="inventoryList" class="items-list"></div>
+                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <button onclick="app.addWeaponToInventory()">+ Add Weapon</button>
+                    <button onclick="app.showArmorModal()">+ Add Armor</button>
+                    <button onclick="app.addInventoryItem()">+ Add Item</button>
+                </div>
+                </div>
+            </div><!-- End equipmentContent -->
+
+            <!-- Injuries & Conditions Section -->
+            <div class="section-header collapsed" id="injuriesHeader" onclick="app.toggleSection('injuries')">
+                <h2>🩹 Injuries & Conditions</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="injuriesContent">
+                <div class="injuries-section">
+                
+                <h3>Injuries</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <h4 style="margin: 10px 0;">Temporary Injuries</h4>
+                        <div id="temporaryInjuries" class="injuries-list"></div>
+                        <button onclick="app.addInjury('temporary')" style="margin-top: 10px;">+ Add Temporary Injury</button>
+                    </div>
+                    <div>
+                        <h4 style="margin: 10px 0;">Permanent Injuries</h4>
+                        <div id="permanentInjuries" class="injuries-list"></div>
+                        <button onclick="app.addInjury('permanent')" style="margin-top: 10px;">+ Add Permanent Injury</button>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 25px;">Conditions</h3>
+                <div id="conditionsList" class="conditions-list"></div>
+                <button onclick="app.addCondition()" style="margin-top: 10px;">+ Add Condition</button>
+                </div>
+            </div><!-- End injuriesContent -->
+            </div><!-- /tab-combat -->
+
+            <div class="tab-pane" id="tab-paths">
+            <!-- Connections Section -->
+            <div class="section-header collapsed" id="connectionsHeader" onclick="app.toggleSection('connections')">
+                <h2>🤝 Connections & Relationships</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="connectionsContent">
+                <div class="connections-section">
+                    <div class="help-text">Track important NPCs, allies, enemies, and other relationships</div>
+                    <div id="connectionsList" class="connections-list"></div>
+                    <button onclick="app.addConnection()" style="margin-top: 10px;">+ Add Connection</button>
+                </div>
+            </div><!-- End connectionsContent -->
+
+            <!-- Paths & Talents Section -->
+            <div class="section-header collapsed" id="pathsHeader" onclick="app.toggleSection('paths')">
+                <h2>⚔️ Paths & Talents</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="pathsContent">
+                <div class="paths-section">
+                    <div class="help-text" style="margin-bottom: 15px;">Select your character's heroic paths and radiant order. Each path grants unique talents.</div>
+                
+                <div id="pathsAndTalentsContainer"></div>
+
+                <div class="path-selector" style="margin-top: 20px;">
+                    <label>Add Path:</label>
+                    <select id="addPathDropdown" onchange="app.addPath(this.value); this.value='';">
+                        <option value="">-- Select a path to add --</option>
+                        <optgroup label="Heroic Paths" id="heroicPathOptions"></optgroup>
+                        <optgroup label="Radiant Orders" id="radiantOrderOptions"></optgroup>
+                    </select>
+                </div>
+
+                <div class="surges-section" id="surgesSection" style="display: none;">
+                    <h2>Surges</h2>
+                    <div class="help-text" style="margin-bottom: 15px;">
+                        As a Radiant, you gain access to two surges based on your order. 
+                        <strong>Surge ranks</strong> use skill rank increases (same pool as skills). 
+                        <strong>Surge talents</strong> use talent points (same pool as path talents).
+                    </div>
+                    <div id="surgesContainer"></div>
+                </div>
+
+                <div class="expertises-section">
+                    <h2>Expertises</h2>
+                    <div class="point-tracker" style="margin-bottom: 10px;">
+                        <div class="point-tracker-header">
+                            <div class="point-tracker-title">Manual Expertise Slots</div>
+                            <div class="point-tracker-values">
+                                <span class="points-used" id="expertisePointsUsed">0</span>
+                                <span>/</span>
+                                <span class="points-total" id="expertisePointsTotal">0</span>
+                                <span class="points-remaining" id="expertisePointsRemaining">0 remaining</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="expertiseProgressBar" style="width: 0%"></div>
+                        </div>
+                        <div class="help-text" id="expertiseBreakdown">2 from culture + Intellect score + talents</div>
+                    </div>
+                    <div class="expertise-list" id="expertiseList">
+                        <button class="add-expertise" onclick="app.addExpertise()">+ Add Expertise</button>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 20px;">
+                    <label>Purpose</label>
+                    <input type="text" id="purpose" placeholder="Your character's driving purpose..." oninput="app.updateCharacter(); app.validateCharacter();">
+                    <div class="help-text">What drives your character? What is their ultimate goal?</div>
+                </div>
+
+                <div class="input-group" style="margin-bottom: 20px;">
+                    <label>Obstacle</label>
+                    <input type="text" id="obstacle" placeholder="Your character's main obstacle..." oninput="app.updateCharacter(); app.validateCharacter();">
+                    <div class="help-text">What stands in their way? What weakness or challenge must they overcome?</div>
+                </div>
+
+                </div>
+            </div><!-- End pathsContent -->
+            </div><!-- /tab-paths -->
+
+            <div class="tab-pane" id="tab-story">
+            <!-- Goals Section -->
+            <div class="section-header collapsed" id="goalsHeader" onclick="app.toggleSection('goals')">
+                <h2>🎯 Goals</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="goalsContent">
+                <div class="notes-section" style="margin: 0;">
+                    <p class="help-text" style="margin-bottom: 15px;">
+                        Goals represent tangible objectives your character is working toward. Each goal has 3 milestone checkboxes to track progress.
+                    </p>
+                    <div id="goalsList" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;"></div>
+                    <button onclick="app.addGoal()" style="margin-bottom: 20px;">+ Add Goal</button>
+                </div>
+            </div><!-- End goalsContent -->
+
+            <!-- Notes Section -->
+            <div class="section-header collapsed" id="notesHeader" onclick="app.toggleSection('notes')">
+                <h2>📝 Notes</h2>
+                <span class="section-toggle-icon">▼</span>
+            </div>
+            <div class="section-content collapsed" id="notesContent">
+                <div class="notes-section" style="margin: 0;">
+                    <textarea class="notes-area" id="notes" placeholder="Additional notes..." onchange="app.updateCharacter()"></textarea>
+                </div>
+            </div><!-- End notesContent -->
+            </div><!-- /tab-story -->
+
+            </div><!-- End character-building -->
+        </div><!-- End characterSheetSection -->
+    </div><!-- End container -->
+
+    <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="app.handleFileImport(event)">
+    <input type="file" id="blankSheetInput" accept="application/pdf,.pdf" style="display: none;">
+
+    <!-- Dice Roller Controls -->
+    <div class="dice-controls">
+        <button id="plotDieToggle" class="dice-toggle" onclick="diceRoller.togglePlotDie()" title="Plot Die">
+            📖
+        </button>
+        <button id="advantageToggle" class="dice-toggle" onclick="diceRoller.toggleAdvantage()" title="Advantage">
+            ⬆️
+        </button>
+        <button id="disadvantageToggle" class="dice-toggle" onclick="diceRoller.toggleDisadvantage()" title="Disadvantage">
+            ⬇️
+        </button>
+        <button class="dice-fab" onclick="diceRoller.open()" title="Dice Roller (D key)">🎲</button>
+    </div>
+
+    <!-- Roll Toast Notification -->
+    <div id="rollToast" class="roll-toast" onclick="if(event.target === this) diceRoller.hideToast()">
+        <div class="roll-toast-content" onclick="event.stopPropagation()">
+            <button class="roll-toast-close" onclick="diceRoller.hideToast()" title="Close (or click outside)">×</button>
+            <div class="roll-toast-title" id="toastTitle">Roll Result</div>
+            <div class="roll-toast-result" id="toastResult">15</div>
+            <div class="roll-toast-breakdown" id="toastBreakdown">1d20+5</div>
+        </div>
+    </div>
+
+    <!-- Weapon Selection Modal -->
+    <div id="weaponModal" class="dice-roller-modal" onclick="if(event.target === this) app.closeWeaponModal()">
+        <div class="dice-roller-content" style="max-width: 800px;">
+            <div class="dice-roller-header">
+                <h2>⚔️ Add Weapon to Inventory</h2>
+                <button class="modal-close" onclick="app.closeWeaponModal()">×</button>
+            </div>
+
+            <!-- Weapon list view -->
+            <div id="weaponListView">
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="weaponSearch" placeholder="Search weapons..."
+                           style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1em;"
+                           oninput="app.filterWeapons(this.value)">
+                </div>
+                <div style="max-height: 60vh; overflow-y: auto;">
+                    <!-- Custom Weapon Option -->
+                    <div class="weapon-option" onclick="app.showCustomWeaponForm()"
+                         style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; font-weight: bold; margin-bottom: 20px; border: 2px solid #2e7d32;">
+                        <div class="weapon-option-name" style="color: white;">✨ Custom / Special Weapon</div>
+                        <div class="weapon-option-stats" style="color: white; opacity: 0.95;">Add a weapon with unique or non-standard properties</div>
+                    </div>
+
+                    <h3 style="color: var(--primary-color);">Light Weapons</h3>
+                    <div id="lightWeaponsList" class="weapon-selection-list"></div>
+
+                    <h3 style="color: var(--secondary-color); margin-top: 20px;">Heavy Weapons</h3>
+                    <div id="heavyWeaponsList" class="weapon-selection-list"></div>
+
+                    <h3 style="color: #9b59b6; margin-top: 20px;">Special</h3>
+                    <div id="specialWeaponsList" class="weapon-selection-list"></div>
+                </div>
+            </div>
+
+            <!-- Custom Weapon Form -->
+            <div id="customWeaponForm" style="display: none;">
+                <h3 style="margin-top: 0; color: #4CAF50;">✨ Custom / Special Weapon</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9em; margin-bottom: 15px;">Define a weapon with unique properties — named blades, fabrial weapons, Shardblade stand-ins, etc.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="grid-column: 1/-1;">
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Weapon Name *</label>
+                        <input type="text" id="cwName" placeholder="e.g. Ancestral Sidesword" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Skill</label>
+                        <select id="cwSkill" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px;">
+                            <option value="light_weaponry">Light Weaponry</option>
+                            <option value="heavy_weaponry">Heavy Weaponry</option>
+                            <option value="athletics">Athletics (Unarmed)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Damage Dice</label>
+                        <select id="cwDamage" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px;">
+                            <option value="1d4">1d4</option>
+                            <option value="1d6" selected>1d6</option>
+                            <option value="1d8">1d8</option>
+                            <option value="1d10">1d10</option>
+                            <option value="1d12">1d12</option>
+                            <option value="2d6">2d6</option>
+                            <option value="Variable">Variable</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Damage Type</label>
+                        <select id="cwDamageType" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px;">
+                            <option value="keen">Keen</option>
+                            <option value="impact">Impact</option>
+                            <option value="variable">Variable</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Range</label>
+                        <input type="text" id="cwRange" placeholder="e.g. Melee, Ranged [80/320]" value="Melee" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Weight (lbs)</label>
+                        <input type="number" id="cwWeight" value="2" min="0" step="any" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Price (marks)</label>
+                        <input type="number" id="cwPrice" value="0" min="0" step="any" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="grid-column: 1/-1;">
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Traits (comma-separated)</label>
+                        <input type="text" id="cwTraits" placeholder="e.g. Quickdraw, Deadly, Offhand" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="grid-column: 1/-1;">
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Notes / Description</label>
+                        <textarea id="cwNotes" rows="2" placeholder="Special rules, lore, or GM notes..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button onclick="app.addCustomWeapon()" style="flex: 1; background: #4CAF50; color: white;">Add to Inventory</button>
+                    <button onclick="app.cancelCustomWeaponForm()" style="background: #999; color: white;">← Back to List</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Armor Selection Modal -->
+    <div id="armorModal" class="dice-roller-modal" onclick="if(event.target === this) app.closeArmorModal()">
+        <div class="dice-roller-content" style="max-width: 700px;">
+            <div class="dice-roller-header">
+                <h2>🛡️ Add Armor to Inventory</h2>
+                <button class="modal-close" onclick="app.closeArmorModal()">×</button>
+            </div>
+
+            <!-- Armor list view -->
+            <div id="armorListView">
+                <div style="margin-bottom: 15px;">
+                    <input type="text" id="armorSearch" placeholder="Search armor..."
+                           style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1em;"
+                           oninput="app.filterArmor(this.value)">
+                </div>
+                <div style="max-height: 60vh; overflow-y: auto;">
+                    <!-- Custom Armor Option -->
+                    <div class="weapon-option" onclick="app.showCustomArmorForm()"
+                         style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; font-weight: bold; margin-bottom: 20px; border: 2px solid #2e7d32;">
+                        <div class="weapon-option-name" style="color: white;">✨ Custom / Special Armor</div>
+                        <div class="weapon-option-stats" style="color: white; opacity: 0.95;">Add armor with unique or non-standard properties</div>
+                    </div>
+
+                    <h3 style="color: var(--primary-color);">Standard Armor</h3>
+                    <div id="armorList" class="weapon-selection-list"></div>
+                </div>
+            </div>
+
+            <!-- Custom Armor Form -->
+            <div id="customArmorForm" style="display: none;">
+                <h3 style="margin-top: 0; color: #4CAF50;">✨ Custom / Special Armor</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9em; margin-bottom: 15px;">Define armor with unique properties — Shardplate stand-ins, fabrial armor, enhanced gear, etc.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="grid-column: 1/-1;">
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Armor Name *</label>
+                        <input type="text" id="caName" placeholder="e.g. Blackened Half Plate" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Deflect Value</label>
+                        <input type="number" id="caDeflect" value="0" min="0" max="10" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Weight (lbs)</label>
+                        <input type="number" id="caWeight" value="20" min="0" step="any" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Price (marks)</label>
+                        <input type="number" id="caPrice" value="0" min="0" step="any" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">STR Required</label>
+                        <input type="number" id="caStrRequired" value="0" min="0" max="5" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="grid-column: 1/-1;">
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Traits (comma-separated)</label>
+                        <input type="text" id="caTraits" placeholder="e.g. Cumbersome [3], Presentable" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box;">
+                    </div>
+                    <div style="grid-column: 1/-1;">
+                        <label style="font-size: 0.85em; font-weight: bold; color: var(--text-secondary);">Notes / Description</label>
+                        <textarea id="caNotes" rows="2" placeholder="Special rules, lore, or GM notes..." style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; margin-top: 4px; box-sizing: border-box; resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button onclick="app.addCustomArmor()" style="flex: 1; background: #4CAF50; color: white;">Add to Inventory</button>
+                    <button onclick="app.cancelCustomArmorForm()" style="background: #999; color: white;">← Back to List</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portrait Lightbox -->
+    <div class="portrait-lightbox" id="portraitLightbox" onclick="app.closePortraitLightbox()">
+        <button class="portrait-lightbox-close" onclick="app.closePortraitLightbox()">&times;</button>
+        <img id="portraitLightboxImage" src="" alt="Character Portrait">
+    </div>
+
+    <!-- Equipment/Item Modal -->
+    <div id="itemModal" class="dice-roller-modal" onclick="if(event.target === this) app.closeItemModal()">
+        <div class="dice-roller-content" style="max-width: 800px;">
+            <div class="dice-roller-header">
+                <h2>🎒 Select Equipment</h2>
+                <button class="modal-close" onclick="app.closeItemModal()">×</button>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="itemSearch" placeholder="Search equipment..." 
+                       style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1em;"
+                       oninput="app.filterItems(this.value)">
+            </div>
+
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <!-- Custom Item Option -->
+                <div class="weapon-option" onclick="app.addCustomItem()" 
+                     style="background: linear-gradient(135deg, #4CAF50, #45a049); color: white; font-weight: bold; margin-bottom: 20px; border: 2px solid #2e7d32;">
+                    <div class="weapon-option-name" style="color: white;">✨ Custom Item (Free-form)</div>
+                    <div class="weapon-option-stats" style="color: white; opacity: 0.95;">Add an item not in the standard list</div>
+                </div>
+
+                <h3 style="color: var(--primary-color);">Standard Equipment</h3>
+                <div id="itemsList" class="weapon-selection-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expertise Selection Modal -->
+    <div id="expertiseModal" class="dice-roller-modal" onclick="if(event.target === this) app.closeExpertiseModal()">
+        <div class="dice-roller-content" style="max-width: 760px;">
+            <div class="dice-roller-header">
+                <h2>📚 Add Expertise</h2>
+                <button class="modal-close" onclick="app.closeExpertiseModal()">×</button>
+            </div>
+
+            <div style="margin-bottom: 12px;">
+                <input type="text" id="expertiseSearch" placeholder="Search expertises..."
+                       style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1em;"
+                       oninput="app.filterExpertises(this.value)">
+            </div>
+
+            <div id="expertiseTabBar" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px;">
+                <button class="expertise-tab" data-cat="weapon" onclick="app.selectExpertiseTab('weapon')">⚔️ Weapon</button>
+                <button class="expertise-tab" data-cat="armor" onclick="app.selectExpertiseTab('armor')">🛡️ Armor</button>
+                <button class="expertise-tab" data-cat="cultural" onclick="app.selectExpertiseTab('cultural')">🌐 Cultural</button>
+                <button class="expertise-tab" data-cat="utility" onclick="app.selectExpertiseTab('utility')">🛠️ Utility</button>
+                <button class="expertise-tab" data-cat="specialist" onclick="app.selectExpertiseTab('specialist')">⭐ Specialist</button>
+                <button class="expertise-tab" data-cat="custom" onclick="app.selectExpertiseTab('custom')">✏️ Custom</button>
+            </div>
+
+            <div id="specialistGate" style="display: none; padding: 10px 12px; background: rgba(255,140,0,0.08); border: 1px solid rgba(255,140,0,0.4); border-radius: 6px; margin-bottom: 12px; font-size: 0.9em;">
+                <strong>Specialist expertises are gated.</strong> Per the handbook, you can normally only acquire these through a talent, reward, or downtime training. Only enable them if your GM has approved.
+                <label style="display: block; margin-top: 6px;">
+                    <input type="checkbox" id="specialistApproved" onchange="app.toggleSpecialistApproval(this.checked)"> GM has approved a specialist expertise
+                </label>
+            </div>
+
+            <div id="customExpertiseForm" style="display: none; padding: 10px 12px; background: rgba(76,175,80,0.05); border: 1px solid rgba(76,175,80,0.4); border-radius: 6px; margin-bottom: 12px;">
+                <p style="margin: 0 0 8px 0; font-size: 0.9em; color: var(--text-secondary);">Custom expertises are pure roleplay tags. They don't add traits or affect die rolls automatically. Use this when your GM approves a unique expertise that isn't in the catalog.</p>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="customExpertiseName" placeholder="Expertise name..."
+                           style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <button onclick="app.commitCustomExpertise()" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Add</button>
+                </div>
+            </div>
+
+            <div style="max-height: 55vh; overflow-y: auto;">
+                <div id="expertiseSelectionList" class="weapon-selection-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Condition Selection Modal -->
+    <div id="conditionModal" class="dice-roller-modal" onclick="if(event.target === this) app.closeConditionModal()">
+        <div class="dice-roller-content" style="max-width: 700px;">
+            <div class="dice-roller-header">
+                <h2>🩹 Select Condition</h2>
+                <button class="modal-close" onclick="app.closeConditionModal()">×</button>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="conditionSearch" placeholder="Search conditions..." 
+                       style="width: 100%; padding: 10px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1em;"
+                       oninput="app.filterConditions(this.value)">
+            </div>
+
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div id="conditionSelectionList" class="weapon-selection-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dice Roller Modal -->
+    <div id="diceRollerModal" class="dice-roller-modal" onclick="if(event.target === this) diceRoller.close()">
+        <div class="dice-roller-content">
+            <div class="dice-roller-header">
+                <h2>🎲 Dice Roller</h2>
+                <button class="modal-close" onclick="diceRoller.close()">×</button>
+            </div>
+
+            <div id="rollResult" style="display: none;"></div>
+
+            <h3>Quick Roll</h3>
+            <div class="dice-grid">
+                <button class="dice-button" onclick="diceRoller.roll('1d4')">d4</button>
+                <button class="dice-button" onclick="diceRoller.roll('1d6')">d6</button>
+                <button class="dice-button" onclick="diceRoller.roll('1d8')">d8</button>
+                <button class="dice-button" onclick="diceRoller.roll('1d10')">d10</button>
+                <button class="dice-button" onclick="diceRoller.roll('1d12')">d12</button>
+                <button class="dice-button" onclick="diceRoller.roll('1d20')">d20</button>
+            </div>
+
+            <div class="plot-die-section">
+                <h3 style="margin-top: 0;">Plot Die (Cosmere Mechanic)</h3>
+                <p style="margin: 5px 0; font-size: 0.9em;">Roll with advantage/disadvantage based on plot die result</p>
+                <button class="dice-button" style="width: 100%;" onclick="diceRoller.rollWithPlotDie()">
+                    Roll d20 + Plot Die
+                </button>
+                <div id="plotDieResult"></div>
+            </div>
+
+            <div class="modifier-section">
+                <h3>Custom Roll</h3>
+                <div class="modifier-input-group">
+                    <input type="text" class="modifier-input" id="customDiceInput" placeholder="e.g., 2d6+5, 1d20+3" value="1d20">
+                    <button class="dice-button" style="width: auto; padding: 10px 20px;" onclick="diceRoller.rollCustom()">Roll</button>
+                </div>
+            </div>
+
+            <div id="skillQuickRolls"></div>
+
+            <h3>Roll History</h3>
+            <div class="roll-history" id="rollHistory">
+                <p style="text-align: center; color: #999;">No rolls yet</p>
+            </div>
+            <button style="margin-top: 10px;" onclick="diceRoller.clearHistory()">Clear History</button>
+        </div>
+    </div>
+
+
+    <!-- Shared Application Dialog (alert, confirm, prompt, form) -->
+    <div id="appDialog" class="app-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+        <div class="app-dialog-content">
+            <div class="app-dialog-header">
+                <h2 id="appDialogTitle">Notice</h2>
+                <button type="button" class="modal-close" id="appDialogClose" aria-label="Close dialog">&times;</button>
+            </div>
+            <div id="appDialogMessage" class="app-dialog-message"></div>
+            <form id="appDialogForm" class="app-dialog-form" novalidate>
+                <div id="appDialogFields" class="app-dialog-fields"></div>
+                <div id="appDialogError" class="app-dialog-error hidden"></div>
+                <div id="appDialogActions" class="app-dialog-actions"></div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Optional PDF Export Libraries -->
+    <script src="pdf-lib.min.js"></script>
+    <script src="blank-sheet-pdf.js"></script>
+
+    <!-- Rules Data Modules (populates window.COSMERE_RULES; works over file://) -->
+    <script src="data/rules/core.js"></script>
+    <script src="data/rules/heroic-paths.js"></script>
+    <script src="data/rules/radiant-orders.js"></script>
+    <script src="data/rules/surges.js"></script>
+    <script src="data/rules/expertises.js"></script>
+    <script src="data/rules/equipment.js"></script>
+    <script src="data/rules/index.js"></script>
+
+    <!-- Application Modules (ordered by dependency) -->
+    <script src="js/debug.js"></script>
+    <script src="js/dice-roller.js"></script>
+    <script src="js/app-core.js"></script>
+    <script src="js/dialogs.js"></script>
+    <script src="js/rules-engine.js"></script>
+    <script src="js/paths-talents.js"></script>
+    <script src="js/expertises.js"></script>
+    <script src="js/equipment.js"></script>
+    <script src="js/character-details.js"></script>
+    <script src="js/combat-play.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/pdf-export.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

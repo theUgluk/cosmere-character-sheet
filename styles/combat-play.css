@@ -1,0 +1,252 @@
+/* Combat & Play view styles: tablet-optimized quick-stat grid, cards, touch dice buttons, collapsible sub-sections, and action lists. */
+
+/* ===== COMBAT & PLAY SECTION (Tablet Optimized) ===== */
+.combat-play-section {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 3px solid var(--primary-color);
+    border-radius: 12px;
+    padding: 15px;
+    margin: 20px 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.combat-play-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.combat-play-header:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.combat-play-header h2 {
+    margin: 0;
+    color: var(--accent-color);
+    font-size: 1.5em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.collapse-indicator {
+    font-size: 1.2em;
+    transition: transform 0.3s;
+    color: var(--accent-color);
+}
+
+.combat-play-header.collapsed .collapse-indicator {
+    transform: rotate(-90deg);
+}
+
+.combat-play-content {
+    max-height: 5000px;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, opacity 0.3s;
+    opacity: 1;
+}
+
+.combat-play-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+}
+
+/* Compact Grid Layout for Tablet */
+.play-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+@media (min-width: 768px) {
+    .play-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    .play-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.play-card {
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(68,138,255,0.3);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.play-card-header {
+    font-weight: bold;
+    font-size: 0.95em;
+    margin-bottom: 10px;
+    color: var(--accent-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.play-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    min-height: 44px; /* Tablet touch target */
+}
+
+.play-stat-label {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+}
+
+.play-stat-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+/* Touch-friendly dice buttons */
+.play-dice-btn {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.3em;
+    background: var(--accent-color);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-center: center;
+    padding: 0;
+}
+
+.play-dice-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 10px var(--accent-color);
+}
+
+.play-dice-btn:active {
+    transform: scale(0.95);
+}
+
+/* Collapsible Section */
+.collapsible-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(68,138,255,0.2);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.collapsible-header {
+    padding: 12px 15px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.05);
+    transition: background 0.2s;
+}
+
+.collapsible-header:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+.collapsible-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    color: var(--accent-color);
+}
+
+.collapsible-content {
+    max-height: 3000px;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out;
+    padding: 15px;
+}
+
+.collapsible-content.collapsed {
+    max-height: 0;
+    padding: 0 15px;
+}
+
+/* Action List */
+.action-list {
+    display: grid;
+    gap: 10px;
+}
+
+.action-item {
+    background: rgba(0,0,0,0.3);
+    padding: 10px;
+    border-radius: 6px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.action-item.reaction {
+    border-left-color: var(--secondary-color);
+}
+
+.action-item.free {
+    border-left-color: var(--success-color);
+}
+
+.action-name {
+    font-weight: bold;
+    font-size: 1.05em;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-cost {
+    font-size: 0.85em;
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+.action-description {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+/* Tablet Optimizations */
+@media (max-width: 1024px) {
+    .combat-play-section {
+        padding: 12px;
+    }
+    
+    button, .play-dice-btn {
+        min-width: 48px;
+        min-height: 48px;
+    }
+    
+    .play-stat-row {
+        min-height: 48px;
+    }
+}
+
+/* Character Building section (separate from play) */
+.character-building {
+    margin-top: 30px;
+    padding-top: 30px;
+    border-top: 3px solid var(--border-color);
+}

@@ -1,0 +1,244 @@
+/* Universal collapsible sections, tab bar/panes, and responsive/print media queries (loaded last to preserve cascade specificity). */
+
+/* ===== COLLAPSIBLE SECTIONS (UNIVERSAL) ===== */
+.section-header {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: linear-gradient(135deg, rgba(68,138,255,0.15), rgba(68,138,255,0.05));
+    border: 2px solid rgba(68,138,255,0.3);
+    border-radius: 8px;
+    margin: 20px 0 10px 0;
+    transition: all 0.2s;
+}
+
+.section-header:hover {
+    background: linear-gradient(135deg, rgba(68,138,255,0.25), rgba(68,138,255,0.15));
+    border-color: rgba(68,138,255,0.5);
+}
+
+.section-header h2,
+.section-header h3 {
+    margin: 0;
+    font-size: 1.3em;
+    color: var(--accent-color);
+}
+
+.section-toggle-icon {
+    font-size: 1.2em;
+    transition: transform 0.3s;
+    color: var(--accent-color);
+}
+
+.section-header.collapsed .section-toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.section-content {
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, opacity 0.3s;
+    max-height: 5000px;
+    opacity: 1;
+}
+
+.section-content.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    padding: 0;
+}
+
+/* ===== TABS ===== */
+.tab-bar {
+    display: flex;
+    gap: 4px;
+    margin: 20px 0 0 0;
+    border-bottom: 3px solid var(--primary-color);
+    flex-wrap: wrap;
+}
+.tab-button {
+    background: linear-gradient(135deg, rgba(68,138,255,0.10), rgba(68,138,255,0.04));
+    border: 2px solid rgba(68,138,255,0.3);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 1em;
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: all 0.15s;
+    margin-bottom: -3px;
+}
+.tab-button:hover {
+    background: linear-gradient(135deg, rgba(68,138,255,0.25), rgba(68,138,255,0.15));
+}
+.tab-button.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    font-weight: 700;
+}
+.tab-pane { display: none; padding: 16px 0; }
+.tab-pane.active { display: block; }
+
+/* Inside tabs, collapsibles become flat panels: always open, header is non-interactive. */
+.tab-pane .section-header {
+    cursor: default;
+    pointer-events: none;
+}
+.tab-pane .section-header .section-toggle-icon { display: none; }
+.tab-pane .section-content,
+.tab-pane .section-content.collapsed {
+    max-height: none;
+    opacity: 1;
+    margin: initial;
+    padding: initial;
+    overflow: visible;
+}
+
+@media print {
+    header, .header-controls, .character-list, button {
+        display: none;
+    }
+    
+    .sheet-container {
+        box-shadow: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .sheet-header {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-controls {
+        flex-direction: column;
+    }
+
+    .pdf-export-control {
+        width: 100%;
+    }
+
+    .pdf-export-control select {
+        flex: 1;
+    }
+    
+    /* Mobile-specific layout improvements */
+    .container {
+        padding: 10px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .sheet-container {
+        padding: 15px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Ensure the character sheet is visible when not hidden */
+    #characterSheetSection:not(.hidden) {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        position: relative !important;
+        height: auto !important;
+    }
+    
+    /* Ensure sections are visible on mobile */
+    .section-header {
+        display: flex !important;
+        visibility: visible !important;
+    }
+    
+    .section-content {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Make sure sheet container shows when not hidden */
+    .sheet-container:not(.hidden) {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Make form inputs more touch-friendly */
+    input[type="text"], input[type="number"], textarea, select {
+        min-height: 44px;
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    /* Improve button spacing for touch */
+    button {
+        min-height: 44px;
+        margin: 5px 2px;
+    }
+    
+    /* Stack grid items vertically on mobile */
+    .stats-grid, .sheet-header {
+        gap: 15px;
+    }
+    
+    /* Character list mobile improvements */
+    .character-list {
+        padding: 15px;
+    }
+    
+    .character-list-items {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .character-card {
+        padding: 15px;
+        min-height: 60px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dice-controls {
+        bottom: 20px;
+        right: 20px;
+        gap: 8px;
+    }
+
+    .dice-toggle {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1em;
+    }
+
+    .dice-fab {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5em;
+    }
+
+    .dice-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .roll-toast {
+        padding: 10px;
+    }
+
+    .roll-toast-content {
+        min-width: 0;
+        width: 100%;
+        max-width: calc(100vw - 20px);
+    }
+
+    .inline-dice-btn {
+        width: 20px;
+        height: 20px;
+        font-size: 0.8em;
+    }
+}
