@@ -1,7 +1,7 @@
 /**
  * PDF Export (Official Blank Sheet Filler & Simplified PDF Generator)
- * Maps character state into blank_sheet.pdf AcroForm fields or generates a clean
- * 2-page PDF via optional PDFLib (pdf-lib.min.js) and blank-sheet-pdf.js.
+ * Maps character state into blank_sheet.pdf AcroForm fields or generates a compact
+ * simplified A4 PDF via optional PDFLib (pdf-lib.min.js) and blank-sheet-pdf.js.
  */
 (function () {
     Object.assign(window.app, {
@@ -143,16 +143,30 @@
             return lines;
         },
 
-        pdfTalentLines: function() {
+        pdfTalentEntries: function() {
             const char = this.currentCharacter;
             const index = this.buildTalentIndex();
             const ids = [...(char.talents || []), ...(char.surgeTalents || [])];
-            return ids.map(id => {
+            const seen = new Set();
+            const entries = [];
+            ids.forEach(id => {
                 const entry = index.byId.get(id);
-                if (!entry) return id;
-                const desc = entry.talent && entry.talent.description ? entry.talent.description : '';
-                const short = desc.length > 160 ? desc.slice(0, 157).trim() + '...' : desc;
-                return short ? `${entry.name}: ${short}` : entry.name;
+                const name = entry ? entry.name : String(id);
+                const key = name.toLowerCase();
+                if (seen.has(key)) return;
+                seen.add(key);
+                const description = entry && entry.talent && entry.talent.description
+                    ? entry.talent.description.replace(/\s+/g, ' ').trim()
+                    : '';
+                entries.push({ name, description });
+            });
+            return entries;
+        },
+
+        pdfTalentLines: function() {
+            return this.pdfTalentEntries().map(({ name, description }) => {
+                const short = description.length > 160 ? description.slice(0, 157).trim() + '...' : description;
+                return short ? `${name}: ${short}` : name;
             });
         },
 
@@ -510,8 +524,21 @@
             return { bytes: saved, failures };
         },
 
-        simplifiedSheetModel: function() {
+        getSimplifiedPdfOptions: function() {
+            const char = this.currentCharacter || {};
+            const saved = char.pdfOptions && typeof char.pdfOptions === 'object' ? char.pdfOptions : {};
+            return {
+                pageSize: saved.pageSize === 'a5' ? 'a5' : 'a4',
+                compactTalents: Array.isArray(saved.compactTalents)
+                    ? saved.compactTalents.map(name => String(name).toLowerCase())
+                    : []
+            };
+        },
+
+        simplifiedSheetModel: function(options) {
             const char = this.currentCharacter;
+            const opts = Object.assign({}, this.getSimplifiedPdfOptions(), options || {});
+            const compactSet = new Set((opts.compactTalents || []).map(name => String(name).toLowerCase()));
             const totalLevel = this.getTotalLevel();
             const culture = this.getCultureData(char.culture);
             const hasRadiant = (char.paths || []).some(p => p.type === 'radiant' && p.level > 0);
@@ -522,7 +549,6 @@
             const skills = [];
             this.pdfSkillRows.forEach(row => {
                 const rank = char.skills[row.id] || 0;
-                if (rank <= 0) return;
                 const skill = this.rules.skills.list.find(s => s.id === row.id);
                 const attr = skill ? (char.attributes[skill.attribute] || 0) : 0;
                 skills.push({
@@ -559,18 +585,6 @@
                     });
                 });
             });
-            const index = this.buildTalentIndex();
-            const talentIds = [...(char.talents || []), ...(char.surgeTalents || [])];
-            const talents = [];
-            const seenTalents = new Set();
-            talentIds.forEach(id => {
-                const entry = index.byId.get(id);
-                const name = entry ? entry.name : id;
-                const key = name.toLowerCase();
-                if (seenTalents.has(key)) return;
-                seenTalents.add(key);
-                talents.push(name);
-            });
             const armor = this.getEquippedArmorDisplayData();
             const weapons = this.getEquippedWeaponDisplayData().map(w => {
                 const traits = (w.traits || [])
@@ -580,7 +594,13 @@
                     .join(', ');
                 return `${w.name}: ${w.damage} ${w.damageType}, ${w.range}, +${w.attackBonus}${traits ? ' (' + traits + ')' : ''}`;
             });
+            const talents = this.pdfTalentEntries().map(entry => ({
+                name: entry.name,
+                description: entry.description,
+                showDescription: !compactSet.has(entry.name.toLowerCase())
+            }));
             return {
+                pageSize: opts.pageSize === 'a5' ? 'a5' : 'a4',
                 name: char.name || 'Unnamed',
                 player: char.playerName || '',
                 level: totalLevel,
@@ -592,12 +612,12 @@
                     { label: 'SPIRITUAL', value: 10 + char.attributes.awareness + char.attributes.presence, tone: 'spiritual' }
                 ],
                 attributes: [
-                    ['STR', char.attributes.strength],
-                    ['SPD', char.attributes.speed],
-                    ['INT', char.attributes.intellect],
-                    ['WIL', char.attributes.willpower],
-                    ['AWA', char.attributes.awareness],
-                    ['PRE', char.attributes.presence]
+                    ['STR', char.attributes.strength, 'physical'],
+                    ['SPD', char.attributes.speed, 'physical'],
+                    ['INT', char.attributes.intellect, 'cognitive'],
+                    ['WIL', char.attributes.willpower, 'cognitive'],
+                    ['AWA', char.attributes.awareness, 'spiritual'],
+                    ['PRE', char.attributes.presence, 'spiritual']
                 ],
                 resources: [
                     ['HEALTH', `${char.currentHealth ?? maxHealth} / ${maxHealth}`],
@@ -607,7 +627,8 @@
                     ['MOVEMENT', `${this.computeMovementRate(char.attributes.speed)} ft`],
                     ['SENSES', sensesText],
                     ['LIFTING', `${this.rules.lifting.baseCapacity + (char.attributes.strength * 50)} lbs`],
-                    ['RECOVERY', this.pdfRecoveryDie(totalLevel)]
+                    ['RECOVERY', this.pdfRecoveryDie(totalLevel)],
+                    ['TIER', String(this.getCurrentTier(totalLevel))]
                 ],
                 skills,
                 weapons,
@@ -618,81 +639,91 @@
             };
         },
 
-        buildSimplifiedSheet: async function() {
+        buildSimplifiedSheet: async function(options) {
             const { PDFDocument, StandardFonts, rgb } = PDFLib;
             const doc = await PDFDocument.create();
             const font = await doc.embedFont(StandardFonts.Helvetica);
             const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-            const model = this.simplifiedSheetModel();
+            const model = this.simplifiedSheetModel(options);
             const self = this;
-            const W = 612;
-            const H = 792;
-            const M = 28;
+            const isA5 = model.pageSize === 'a5';
+            // ISO A4 (210x297mm) or A5 (148x210mm) Portrait in PDF points
+            const W = isA5 ? 420.94 : 595.28;
+            const H = isA5 ? 595.28 : 841.89;
+            const M = isA5 ? 16 : 20;
             const contentW = W - M * 2;
-            const ink = rgb(0.13, 0.15, 0.18);
-            const muted = rgb(0.38, 0.40, 0.45);
-            const hair = rgb(0.76, 0.72, 0.64);
-            const paper = rgb(0.98, 0.965, 0.945);
-            const white = rgb(1, 1, 1);
-            const navy = rgb(0.16, 0.32, 0.55);
-            const gold = rgb(0.62, 0.47, 0.14);
-            const tones = {
-                physical: rgb(0.66, 0.22, 0.22),
-                cognitive: rgb(0.22, 0.38, 0.64),
-                spiritual: rgb(0.30, 0.48, 0.24)
-            };
+            const ink = rgb(0, 0, 0);
+            const muted = rgb(0.28, 0.28, 0.28);
+            const border = rgb(0.2, 0.2, 0.2);
+            const hair = rgb(0.68, 0.68, 0.68);
             let page;
             let top;
 
             const newPage = (continued) => {
                 page = doc.addPage([W, H]);
-                page.drawRectangle({ x: 0, y: 0, width: W, height: H, color: paper });
                 page.drawText('Cosmere RPG  ·  simplified sheet', {
-                    x: M, y: 16, size: 8, font, color: muted
+                    x: M, y: 14, size: 7.5, font, color: muted
                 });
                 if (continued) {
-                    page.drawRectangle({ x: 0, y: H - 34, width: W, height: 34, color: navy });
-                    page.drawText(self.pdfFitLine(`${model.name}  ·  continued`, bold, 11, contentW), {
-                        x: M, y: H - 22, size: 11, font: bold, color: white
+                    page.drawText(self.pdfFitLine(`${model.name}  ·  continued`, bold, 9.5, contentW), {
+                        x: M, y: H - 22, size: 9.5, font: bold, color: ink
                     });
-                    top = 48;
+                    page.drawLine({
+                        start: { x: M, y: H - 26 }, end: { x: M + contentW, y: H - 26 },
+                        thickness: 0.8, color: ink
+                    });
+                    top = 33;
                     return;
                 }
-                page.drawRectangle({ x: 0, y: H - 86, width: W, height: 86, color: navy });
-                page.drawRectangle({ x: 0, y: H - 90, width: W, height: 4, color: gold });
-                let nameSize = 20;
-                const safeName = self.pdfSafe(model.name);
-                while (nameSize > 13 && bold.widthOfTextAtSize(safeName, nameSize) > contentW) nameSize -= 1;
-                page.drawText(safeName, { x: M, y: H - 32, size: nameSize, font: bold, color: white });
                 const meta = [
                     `Level ${model.level}`,
                     model.ancestry,
-                    model.paths,
-                    model.player ? `Player ${model.player}` : ''
+                    model.paths
                 ].filter(Boolean).join('  |  ');
-                const metaLines = self.pdfWrapLines(meta, font, 9, contentW).slice(0, 2);
-                metaLines.forEach((line, i) => {
-                    page.drawText(line, { x: M, y: H - 52 - (i * 12), size: 9, font, color: rgb(0.90, 0.92, 0.95) });
+                const safeName = self.pdfSafe(model.name);
+                const safeMeta = self.pdfSafe(meta);
+                let nameSize = 13;
+                const metaSize = 7.8;
+                let nameW = bold.widthOfTextAtSize(safeName, nameSize);
+                const metaW = font.widthOfTextAtSize(safeMeta, metaSize);
+                while (nameSize > 9.5 && nameW + 12 + metaW > contentW) {
+                    nameSize -= 0.5;
+                    nameW = bold.widthOfTextAtSize(safeName, nameSize);
+                }
+                const singleLine = nameW + 12 + metaW <= contentW;
+                const metaLines = singleLine ? [safeMeta] : self.pdfWrapLines(safeMeta, font, 7.5, contentW).slice(0, 2);
+                const ruleYTop = singleLine ? 24 : (metaLines.length > 1 ? 42 : 33);
+                if (singleLine) {
+                    page.drawText(safeName, { x: M, y: H - 20, size: nameSize, font: bold, color: ink });
+                    page.drawText(safeMeta, {
+                        x: W - M - metaW, y: H - 20, size: metaSize, font, color: muted
+                    });
+                } else {
+                    const fittedName = self.pdfFitLine(safeName, bold, nameSize, contentW);
+                    page.drawText(fittedName, { x: M, y: H - 19, size: nameSize, font: bold, color: ink });
+                    metaLines.forEach((line, i) => {
+                        page.drawText(line, { x: M, y: H - 29.5 - (i * 9), size: 7.5, font, color: muted });
+                    });
+                }
+                page.drawLine({
+                    start: { x: M, y: H - ruleYTop }, end: { x: M + contentW, y: H - ruleYTop },
+                    thickness: 1.2, color: ink
                 });
-                top = 106;
+                top = ruleYTop + 6;
             };
 
             const ensure = (height) => {
-                if (top + height > H - 36) newPage(true);
+                if (top + height > H - 28) newPage(true);
             };
 
             const sectionTitle = (label) => {
-                ensure(22);
-                page.drawRectangle({ x: M, y: H - top - 13, width: 4, height: 13, color: gold });
-                page.drawText(label, { x: M + 10, y: H - top - 11, size: 11, font: bold, color: navy });
-                top += 20;
-            };
-
-            const card = (x, yTop, w, h) => {
-                page.drawRectangle({
-                    x, y: H - yTop - h, width: w, height: h,
-                    color: white, borderColor: hair, borderWidth: 0.8
+                ensure(14);
+                page.drawText(label, { x: M, y: H - top - 7.5, size: 8.5, font: bold, color: ink });
+                page.drawLine({
+                    start: { x: M, y: H - top - 10 }, end: { x: M + contentW, y: H - top - 10 },
+                    thickness: 0.6, color: border
                 });
+                top += 13;
             };
 
             const drawWrappedBlock = (lines, size, leading, color, usedFont) => {
@@ -703,133 +734,513 @@
                 });
             };
 
+            const drawLabelledLine = (line, size, leading, extraGap, boldIfNoSep) => {
+                const safe = self.pdfSafe(line).replace(/\s+/g, ' ').trim();
+                if (!safe) return;
+                const sep = safe.indexOf(': ');
+                if (sep <= 0) {
+                    const f = boldIfNoSep ? bold : font;
+                    drawWrappedBlock(self.pdfWrapLines(safe, f, size, contentW), size, leading, ink, f);
+                    if (extraGap) top += extraGap;
+                    return;
+                }
+                const prefix = safe.slice(0, sep + 2);
+                const rest = safe.slice(sep + 2).trim();
+                const prefixW = bold.widthOfTextAtSize(prefix, size);
+                if (!rest || prefixW > contentW * 0.6) {
+                    drawWrappedBlock(self.pdfWrapLines(safe, font, size, contentW), size, leading, ink, font);
+                    if (extraGap) top += extraGap;
+                    return;
+                }
+                const indent = 8;
+                const firstMaxW = contentW - prefixW;
+                const words = rest.split(' ');
+                let firstRest = '';
+                let idx = 0;
+                while (idx < words.length) {
+                    const trial = firstRest ? firstRest + ' ' + words[idx] : words[idx];
+                    if (font.widthOfTextAtSize(trial, size) <= firstMaxW) {
+                        firstRest = trial;
+                        idx += 1;
+                    } else {
+                        break;
+                    }
+                }
+                ensure(leading);
+                page.drawText(prefix, { x: M, y: H - top - size, size, font: bold, color: ink });
+                if (firstRest) {
+                    page.drawText(firstRest, { x: M + prefixW, y: H - top - size, size, font, color: ink });
+                }
+                top += leading;
+                if (idx < words.length) {
+                    const remainingText = words.slice(idx).join(' ');
+                    const wrapped = self.pdfWrapLines(remainingText, font, size, contentW - indent);
+                    wrapped.forEach(wLine => {
+                        ensure(leading);
+                        page.drawText(wLine, { x: M + indent, y: H - top - size, size, font, color: ink });
+                        top += leading;
+                    });
+                }
+                if (extraGap) top += extraGap;
+            };
+
             newPage(false);
 
-            const gap = 8;
-            const defW = (contentW - gap * 2) / 3;
-            ensure(56);
-            model.defenses.forEach((defense, i) => {
-                const x = M + i * (defW + gap);
-                card(x, top, defW, 52);
-                page.drawRectangle({ x, y: H - top - 52, width: 4, height: 52, color: tones[defense.tone] });
-                page.drawText(defense.label + ' DEFENSE', {
-                    x: x + 12, y: H - top - 16, size: 7.5, font: bold, color: muted
-                });
-                const value = String(defense.value);
-                const vw = bold.widthOfTextAtSize(value, 20);
-                page.drawText(value, {
-                    x: x + (defW - vw) / 2, y: H - top - 40, size: 20, font: bold, color: ink
-                });
-            });
-            top += 62;
+            // Compact 3-row stats table: Defenses | Attr 1 | Attr 2 | Resource Pools | Derived | Combat
+            const resMap = Object.fromEntries(model.resources);
+            const statLabelSize = isA5 ? 5.7 : 6.3;
+            const statPadX = isA5 ? 3.5 : 5;
+            const statCols = isA5
+                ? [
+                    { w: 74, valW: 20, valSize: 8.2 },
+                    { w: 39, valW: 17, valSize: 8.2 },
+                    { w: 39, valW: 17, valSize: 8.2 },
+                    { w: 85, valW: 39, valSize: 7.4 },
+                    { w: 86, valW: 45, valSize: 7.4 },
+                    { w: contentW - (74 + 39 + 39 + 85 + 86), valW: 26, valSize: 7.4 }
+                ]
+                : [
+                    { w: 110, valW: 24, valSize: 9 },
+                    { w: 54, valW: 22, valSize: 9 },
+                    { w: 54, valW: 22, valSize: 9 },
+                    { w: 116, valW: 54, valSize: 8.3 },
+                    { w: 113, valW: 56, valSize: 8.3 },
+                    { w: contentW - (110 + 54 + 54 + 116 + 113), valW: 48, valSize: 8.3 }
+                ];
+            const defSuffix = isA5 ? ' DEF' : ' DEFENSE';
+            const statRows = [
+                [
+                    { label: 'PHYSICAL' + defSuffix, value: String(model.defenses[0].value) },
+                    { label: model.attributes[0][0], value: String(model.attributes[0][1]) },
+                    { label: model.attributes[1][0], value: String(model.attributes[1][1]) },
+                    { label: 'HEALTH', value: resMap['HEALTH'] || '-' },
+                    { label: 'MOVEMENT', value: resMap['MOVEMENT'] || '-' },
+                    { label: 'DEFLECT', value: resMap['DEFLECT'] || '0' }
+                ],
+                [
+                    { label: 'COGNITIVE' + defSuffix, value: String(model.defenses[1].value) },
+                    { label: model.attributes[2][0], value: String(model.attributes[2][1]) },
+                    { label: model.attributes[3][0], value: String(model.attributes[3][1]) },
+                    { label: 'FOCUS', value: resMap['FOCUS'] || '-' },
+                    { label: 'SENSES', value: resMap['SENSES'] || '-' },
+                    { label: 'RECOVERY', value: resMap['RECOVERY'] || '-' }
+                ],
+                [
+                    { label: 'SPIRITUAL' + defSuffix, value: String(model.defenses[2].value) },
+                    { label: model.attributes[4][0], value: String(model.attributes[4][1]) },
+                    { label: model.attributes[5][0], value: String(model.attributes[5][1]) },
+                    { label: 'INVESTITURE', value: resMap['INVESTITURE'] || '-' },
+                    { label: 'LIFTING', value: resMap['LIFTING'] || '-' },
+                    { label: 'TIER', value: resMap['TIER'] || '1' }
+                ]
+            ];
+            const rowH = isA5 ? 14.5 : 16;
+            const tableH = rowH * statRows.length;
+            ensure(tableH + 7);
+            const tableTop = top;
 
-            const attrW = (contentW - gap * 5) / 6;
-            ensure(44);
-            model.attributes.forEach(([abbr, value], i) => {
-                const x = M + i * (attrW + gap);
-                card(x, top, attrW, 40);
-                const abbrW = bold.widthOfTextAtSize(abbr, 8);
-                page.drawText(abbr, { x: x + (attrW - abbrW) / 2, y: H - top - 14, size: 8, font: bold, color: muted });
-                const valueText = String(value);
-                const vw = bold.widthOfTextAtSize(valueText, 16);
-                page.drawText(valueText, { x: x + (attrW - vw) / 2, y: H - top - 32, size: 16, font: bold, color: ink });
-            });
-            top += 50;
-
-            const resW = (contentW - gap * 3) / 4;
-            for (let row = 0; row < 2; row++) {
-                ensure(34);
-                model.resources.slice(row * 4, row * 4 + 4).forEach(([label, value], i) => {
-                    const x = M + i * (resW + gap);
-                    card(x, top, resW, 32);
-                    page.drawText(label, { x: x + 8, y: H - top - 12, size: 7, font: bold, color: muted });
-                    page.drawText(self.pdfFitLine(String(value), bold, 11, resW - 16), {
-                        x: x + 8, y: H - top - 26, size: 11, font: bold, color: ink
+            // Table cell text and inner label|value dividers (no background fills)
+            statRows.forEach((row, r) => {
+                const yTop = tableTop + r * rowH;
+                const yBottom = H - yTop - rowH;
+                let cx = M;
+                row.forEach((cell, c) => {
+                    const col = statCols[c];
+                    const labelW = col.w - col.valW;
+                    const labelText = self.pdfFitLine(cell.label, bold, statLabelSize, labelW - statPadX * 1.4);
+                    const lw = bold.widthOfTextAtSize(labelText, statLabelSize);
+                    const labelBaseline = rowH / 2 + statLabelSize * 0.35;
+                    page.drawText(labelText, {
+                        x: cx + labelW - lw - statPadX, y: H - yTop - labelBaseline, size: statLabelSize, font: bold, color: muted
                     });
+                    const valText = self.pdfFitLine(cell.value, bold, col.valSize, col.valW - statPadX * 1.2);
+                    const vw = bold.widthOfTextAtSize(valText, col.valSize);
+                    const valBaseline = rowH / 2 + col.valSize * 0.35;
+                    page.drawText(valText, {
+                        x: cx + col.w - vw - statPadX, y: H - yTop - valBaseline, size: col.valSize, font: bold, color: ink
+                    });
+                    // Inner divider between label and value
+                    page.drawLine({
+                        start: { x: cx + labelW, y: yBottom },
+                        end: { x: cx + labelW, y: yBottom + rowH },
+                        thickness: 0.4, color: hair
+                    });
+                    cx += col.w;
                 });
-                top += 38;
+            });
+
+            // Horizontal row dividers
+            for (let r = 1; r < statRows.length; r++) {
+                const y = H - tableTop - r * rowH;
+                page.drawLine({
+                    start: { x: M, y }, end: { x: M + contentW, y },
+                    thickness: 0.5, color: border
+                });
             }
-            top += 6;
+            // Vertical column dividers (stronger divider between Attributes and Resources)
+            let vx = M;
+            for (let c = 0; c < statCols.length - 1; c++) {
+                vx += statCols[c].w;
+                page.drawLine({
+                    start: { x: vx, y: H - tableTop - tableH },
+                    end: { x: vx, y: H - tableTop },
+                    thickness: c === 2 ? 1.0 : 0.6,
+                    color: c === 2 ? ink : border
+                });
+            }
+            // Crisp outer frame
+            page.drawRectangle({
+                x: M, y: H - tableTop - tableH, width: contentW, height: tableH,
+                borderColor: border, borderWidth: 0.8
+            });
+            top = tableTop + tableH + 7;
 
             sectionTitle('SKILLS');
             const groups = { physical: [], cognitive: [], spiritual: [] };
             model.skills.forEach(skill => {
                 if (groups[skill.category]) groups[skill.category].push(skill);
             });
-            const skillRows = Math.max(1, ...Object.values(groups).map(list => list.length));
-            const skillHead = 18;
-            const skillRowH = 16;
-            const skillBoxH = skillHead + skillRows * skillRowH + 6;
-            ensure(skillBoxH);
+            const skillCats = ['physical', 'cognitive', 'spiritual'];
+            const subColsPerCat = isA5 ? 1 : 2;
+            const catW = contentW / 3;
+            const subW = catW / subColsPerCat;
+            const skillRows = Math.max(1, ...skillCats.map(cat => Math.ceil(groups[cat].length / subColsPerCat)));
+            const skillHeadH = 11.5;
+            const skillRowH = isA5 ? 10.2 : 11;
+            const skillTableH = skillHeadH + skillRows * skillRowH;
+            ensure(skillTableH + 7);
             const skillTop = top;
-            ['physical', 'cognitive', 'spiritual'].forEach((category, i) => {
-                const x = M + i * (defW + gap);
-                card(x, skillTop, defW, skillBoxH);
-                page.drawRectangle({ x, y: H - skillTop - skillHead, width: defW, height: skillHead, color: tones[category] });
-                const title = category.toUpperCase();
-                const titleW = bold.widthOfTextAtSize(title, 8);
+            const skillSize = 6.8;
+            const modSize = 7;
+            const rankSize = 6;
+
+            // Category header row (plain white, bold black centered)
+            skillCats.forEach((cat, i) => {
+                const x = M + i * catW;
+                const title = cat.toUpperCase();
+                const titleW = bold.widthOfTextAtSize(title, 6.5);
                 page.drawText(title, {
-                    x: x + (defW - titleW) / 2, y: H - skillTop - 13, size: 8, font: bold, color: white
-                });
-                const list = groups[category];
-                if (list.length === 0) {
-                    page.drawText('No ranks', {
-                        x: x + 10, y: H - skillTop - skillHead - 16, size: 9, font, color: muted
-                    });
-                    return;
-                }
-                list.forEach((skill, rowIndex) => {
-                    const y = H - skillTop - skillHead - 14 - rowIndex * skillRowH;
-                    const mod = `+${skill.modifier}`;
-                    const rank = `(${skill.rank})`;
-                    const modW = bold.widthOfTextAtSize(mod, 10);
-                    const rankW = font.widthOfTextAtSize(rank, 8);
-                    page.drawText(self.pdfFitLine(skill.name, font, 9, defW - modW - rankW - 28), {
-                        x: x + 8, y, size: 9, font, color: ink
-                    });
-                    page.drawText(mod, { x: x + defW - modW - rankW - 16, y, size: 10, font: bold, color: ink });
-                    page.drawText(rank, { x: x + defW - rankW - 8, y, size: 8, font, color: muted });
+                    x: x + (catW - titleW) / 2, y: H - skillTop - 8, size: 6.5, font: bold, color: ink
                 });
             });
-            top = skillTop + skillBoxH + 14;
+            page.drawLine({
+                start: { x: M, y: H - skillTop - skillHeadH },
+                end: { x: M + contentW, y: H - skillTop - skillHeadH },
+                thickness: 0.7, color: border
+            });
+
+            // Skill cells (1 col/category on A5 Portrait, 2 sub-columns/category on A4 Portrait)
+            skillCats.forEach((cat, i) => {
+                const list = groups[cat];
+                const split = Math.ceil(list.length / subColsPerCat);
+                const catX = M + i * catW;
+                for (let sub = 0; sub < subColsPerCat; sub++) {
+                    const colX = catX + sub * subW;
+                    for (let r = 0; r < skillRows; r++) {
+                        const idx = sub * split + r;
+                        if (sub === 0 && r >= split) continue;
+                        if (idx >= list.length) continue;
+                        const skill = list[idx];
+                        const yTop = skillTop + skillHeadH + r * skillRowH;
+                        const y = H - yTop - (skillRowH / 2 + skillSize * 0.34);
+                        const trained = skill.rank > 0;
+                        const nameFont = trained ? bold : font;
+                        const modFont = trained ? bold : font;
+                        const modStr = `+${skill.modifier}`;
+                        const rankStr = `(${skill.rank})`;
+                        const modW = modFont.widthOfTextAtSize(modStr, modSize);
+                        const rankW = font.widthOfTextAtSize(rankStr, rankSize);
+                        const nameMaxW = subW - modW - rankW - 14;
+                        page.drawText(self.pdfFitLine(skill.name, nameFont, skillSize, nameMaxW), {
+                            x: colX + 4, y, size: skillSize, font: nameFont, color: trained ? ink : muted
+                        });
+                        page.drawText(modStr, {
+                            x: colX + subW - modW - rankW - 6, y, size: modSize, font: modFont, color: trained ? ink : muted
+                        });
+                        page.drawText(rankStr, {
+                            x: colX + subW - rankW - 4, y, size: rankSize, font, color: muted
+                        });
+                    }
+                }
+            });
+
+            // Subtle horizontal row hairlines
+            for (let r = 1; r < skillRows; r++) {
+                const y = H - skillTop - skillHeadH - r * skillRowH;
+                page.drawLine({
+                    start: { x: M, y }, end: { x: M + contentW, y },
+                    thickness: 0.35, color: hair
+                });
+            }
+            // Vertical dividers: light between sub-columns (A4 only), stronger between categories
+            for (let i = 0; i < 3; i++) {
+                if (subColsPerCat === 2) {
+                    const subLineX = M + i * catW + subW;
+                    page.drawLine({
+                        start: { x: subLineX, y: H - skillTop - skillTableH },
+                        end: { x: subLineX, y: H - skillTop - skillHeadH },
+                        thickness: 0.35, color: hair
+                    });
+                }
+                if (i > 0) {
+                    const catLineX = M + i * catW;
+                    page.drawLine({
+                        start: { x: catLineX, y: H - skillTop - skillTableH },
+                        end: { x: catLineX, y: H - skillTop },
+                        thickness: 0.7, color: border
+                    });
+                }
+            }
+            // Crisp outer frame
+            page.drawRectangle({
+                x: M, y: H - skillTop - skillTableH, width: contentW, height: skillTableH,
+                borderColor: border, borderWidth: 0.8
+            });
+            top = skillTop + skillTableH + 7;
 
             sectionTitle('WEAPONS');
             if (model.armor) {
-                drawWrappedBlock(self.pdfWrapLines(`Armor  ·  ${model.armor}`, font, 9, contentW), 9, 13, ink, font);
+                drawLabelledLine(`Armor: ${model.armor}`, 7.6, 10, 0.5, false);
             }
             if (model.weapons.length === 0) {
-                drawWrappedBlock(['No weapons equipped'], 9, 13, muted, font);
+                drawWrappedBlock(['No weapons equipped'], 7.6, 10, muted, font);
             } else {
                 model.weapons.forEach(line => {
-                    drawWrappedBlock(self.pdfWrapLines(line, font, 9, contentW), 9, 13, ink, font);
+                    drawLabelledLine(line, 7.6, 10, 0.5, false);
                 });
             }
-            top += 6;
+            top += 5;
 
             sectionTitle('TALENTS');
             if (model.talents.length === 0) {
-                drawWrappedBlock(['No talents'], 9, 13, muted, font);
+                drawWrappedBlock(['No talents'], 7.5, 9.8, muted, font);
             } else {
-                model.talents.forEach(name => {
-                    drawWrappedBlock(self.pdfWrapLines(name, font, 9, contentW), 9, 13, ink, font);
-                });
+                const cols = isA5 ? 2 : 3;
+                const blockGap = 5;
+                const blockW = (contentW - blockGap * (cols - 1)) / cols;
+                const cellPadX = 4;
+                const innerW = blockW - cellPadX * 2;
+                const titleSize = 7.1;
+                const titleLeading = 8.6;
+                const descSize = 6.7;
+                const descLeading = 8.3;
+
+                const detailedTalents = model.talents.filter(t => t.showDescription);
+                const compactTalents = model.talents.filter(t => !t.showDescription);
+
+                // Loose 2-row blocks for talents with full explanations
+                for (let i = 0; i < detailedTalents.length; i += cols) {
+                    const rowSlice = detailedTalents.slice(i, i + cols).map(talent => {
+                        const titleLines = self.pdfWrapLines(talent.name, bold, titleSize, innerW);
+                        const descLines = talent.description
+                            ? self.pdfWrapLines(talent.description, font, descSize, innerW)
+                            : ['-'];
+                        const titleH = Math.max(1, titleLines.length) * titleLeading + 3;
+                        const descH = descLines.length * descLeading + 3.5;
+                        return { talent, titleLines, descLines, titleH, descH, totalH: titleH + descH };
+                    });
+                    const rowH = Math.max(...rowSlice.map(item => item.totalH));
+                    ensure(rowH + blockGap);
+                    const rowTop = top;
+
+                    rowSlice.forEach((item, colIdx) => {
+                        const x = M + colIdx * (blockW + blockGap);
+                        page.drawRectangle({
+                            x, y: H - rowTop - rowH, width: blockW, height: rowH,
+                            borderColor: border, borderWidth: 0.7
+                        });
+                        item.titleLines.forEach((line, idx) => {
+                            page.drawText(line, {
+                                x: x + cellPadX,
+                                y: H - rowTop - 8.2 - (idx * titleLeading),
+                                size: titleSize,
+                                font: bold,
+                                color: ink
+                            });
+                        });
+                        const divY = H - rowTop - item.titleH;
+                        page.drawLine({
+                            start: { x, y: divY },
+                            end: { x: x + blockW, y: divY },
+                            thickness: 0.4, color: hair
+                        });
+                        item.descLines.forEach((line, idx) => {
+                            page.drawText(line, {
+                                x: x + cellPadX,
+                                y: divY - 8 - (idx * descLeading),
+                                size: descSize,
+                                font,
+                                color: item.talent.description ? ink : muted
+                            });
+                        });
+                    });
+
+                    top = rowTop + rowH + blockGap;
+                }
+
+                // Compact 1-row name-only blocks for talents with explanations hidden
+                for (let i = 0; i < compactTalents.length; i += cols) {
+                    const rowSlice = compactTalents.slice(i, i + cols).map(talent => {
+                        const titleLines = self.pdfWrapLines(talent.name, bold, titleSize, innerW);
+                        const titleH = Math.max(1, titleLines.length) * titleLeading + 3;
+                        return { titleLines, titleH };
+                    });
+                    const rowH = Math.max(...rowSlice.map(item => item.titleH));
+                    ensure(rowH + blockGap);
+                    const rowTop = top;
+
+                    rowSlice.forEach((item, colIdx) => {
+                        const x = M + colIdx * (blockW + blockGap);
+                        page.drawRectangle({
+                            x, y: H - rowTop - rowH, width: blockW, height: rowH,
+                            borderColor: border, borderWidth: 0.7
+                        });
+                        item.titleLines.forEach((line, idx) => {
+                            page.drawText(line, {
+                                x: x + cellPadX,
+                                y: H - rowTop - 8.2 - (idx * titleLeading),
+                                size: titleSize,
+                                font: bold,
+                                color: ink
+                            });
+                        });
+                    });
+
+                    top = rowTop + rowH + blockGap;
+                }
             }
-            top += 6;
+            top += 2;
 
             sectionTitle('EXPERTISES');
             const expertiseText = model.expertises.length ? model.expertises.join(', ') : 'None';
-            drawWrappedBlock(self.pdfWrapLines(expertiseText, font, 9, contentW), 9, 13, model.expertises.length ? ink : muted, font);
+            drawWrappedBlock(self.pdfWrapLines(expertiseText, font, 7.6, contentW), 7.6, 10, model.expertises.length ? ink : muted, font);
 
             if (model.conditions.length) {
-                top += 6;
+                top += 5;
                 sectionTitle('CONDITIONS');
                 model.conditions.forEach(line => {
-                    drawWrappedBlock(self.pdfWrapLines(line, font, 9, contentW), 9, 13, ink, font);
+                    drawWrappedBlock(self.pdfWrapLines(line, font, 7.6, contentW), 7.6, 10, ink, font);
                 });
             }
 
             const bytes = await doc.save();
             return { bytes, failures: [] };
+        },
+
+        openSimplifiedPdfModal: function() {
+            const modal = document.getElementById('simplifiedPdfModal');
+            if (!modal) {
+                this.confirmSimplifiedPdfExport();
+                return;
+            }
+            if (!this._simplifiedPdfEscBound) {
+                this._simplifiedPdfEscBound = true;
+                document.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Escape') return;
+                    const m = document.getElementById('simplifiedPdfModal');
+                    if (m && m.classList.contains('active')) {
+                        e.preventDefault();
+                        this.closeSimplifiedPdfModal();
+                    }
+                });
+            }
+
+            const opts = this.getSimplifiedPdfOptions();
+            const radios = modal.querySelectorAll('input[name="simplifiedPdfPageSize"]');
+            radios.forEach(radio => {
+                radio.checked = radio.value === opts.pageSize;
+            });
+
+            const listEl = document.getElementById('simplifiedPdfTalentList');
+            if (listEl) {
+                listEl.innerHTML = '';
+                const compactSet = new Set(opts.compactTalents);
+                const entries = this.pdfTalentEntries();
+                if (entries.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'pdf-talent-empty';
+                    empty.textContent = 'No talents selected on this character.';
+                    listEl.appendChild(empty);
+                } else {
+                    entries.forEach(entry => {
+                        const label = document.createElement('label');
+                        label.className = 'pdf-talent-check-item';
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.dataset.talentKey = entry.name.toLowerCase();
+                        checkbox.checked = !compactSet.has(entry.name.toLowerCase());
+                        const textWrap = document.createElement('span');
+                        textWrap.className = 'pdf-talent-check-text';
+                        const titleEl = document.createElement('strong');
+                        titleEl.textContent = entry.name;
+                        textWrap.appendChild(titleEl);
+                        if (entry.description) {
+                            const descEl = document.createElement('span');
+                            descEl.className = 'pdf-talent-check-desc';
+                            descEl.textContent = entry.description;
+                            textWrap.appendChild(descEl);
+                        }
+                        label.appendChild(checkbox);
+                        label.appendChild(textWrap);
+                        listEl.appendChild(label);
+                    });
+                }
+            }
+
+            modal.classList.add('active');
+        },
+
+        closeSimplifiedPdfModal: function() {
+            const modal = document.getElementById('simplifiedPdfModal');
+            if (modal) modal.classList.remove('active');
+        },
+
+        setAllSimplifiedTalentDescriptions: function(includeAll) {
+            const listEl = document.getElementById('simplifiedPdfTalentList');
+            if (!listEl) return;
+            listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.checked = !!includeAll;
+            });
+        },
+
+        confirmSimplifiedPdfExport: async function() {
+            if (!this.currentCharacter) return;
+            const modal = document.getElementById('simplifiedPdfModal');
+            let pageSize = this.getSimplifiedPdfOptions().pageSize;
+            let compactTalents = this.getSimplifiedPdfOptions().compactTalents;
+
+            if (modal) {
+                const checkedRadio = modal.querySelector('input[name="simplifiedPdfPageSize"]:checked');
+                if (checkedRadio) pageSize = checkedRadio.value === 'a5' ? 'a5' : 'a4';
+                const listEl = document.getElementById('simplifiedPdfTalentList');
+                if (listEl) {
+                    const checkboxes = listEl.querySelectorAll('input[type="checkbox"]');
+                    if (checkboxes.length > 0) {
+                        compactTalents = [];
+                        checkboxes.forEach(cb => {
+                            if (!cb.checked && cb.dataset.talentKey) {
+                                compactTalents.push(cb.dataset.talentKey);
+                            }
+                        });
+                    }
+                }
+            }
+
+            this.currentCharacter.pdfOptions = { pageSize, compactTalents };
+            if (typeof this.saveToLocalStorage === 'function') {
+                this.saveToLocalStorage();
+            }
+            this.closeSimplifiedPdfModal();
+
+            try {
+                const safeName = (this.currentCharacter.name || 'character').replace(/[^a-z0-9]+/gi, '_') || 'character';
+                const level = this.getTotalLevel();
+                const filled = await this.buildSimplifiedSheet({ pageSize, compactTalents });
+                this.downloadBytes(filled.bytes, `${safeName}_Lv${level}_simple_${pageSize.toUpperCase()}.pdf`, 'application/pdf');
+            } catch (err) {
+                console.error('Simplified PDF export failed', err);
+                await this.dialog.alert('Could not export the PDF: ' + (err && err.message ? err.message : err), { title: 'PDF Export Error', variant: 'error' });
+            }
         },
 
         exportToPdf: async function() {
@@ -845,13 +1256,12 @@
                 this.updateCharacter();
                 this.recalculateAll();
                 const mode = (document.getElementById('pdfExportMode') || {}).value || 'full';
-                const safeName = (this.currentCharacter.name || 'character').replace(/[^a-z0-9]+/gi, '_') || 'character';
-                const level = this.getTotalLevel();
                 if (mode === 'simplified') {
-                    const filled = await this.buildSimplifiedSheet();
-                    this.downloadBytes(filled.bytes, `${safeName}_Lv${level}_simple.pdf`, 'application/pdf');
+                    this.openSimplifiedPdfModal();
                     return;
                 }
+                const safeName = (this.currentCharacter.name || 'character').replace(/[^a-z0-9]+/gi, '_') || 'character';
+                const level = this.getTotalLevel();
                 const template = await this.loadBlankSheetBytes();
                 const filled = await this.fillBlankSheet(template);
                 this.downloadBytes(filled.bytes, `${safeName}_Lv${level}.pdf`, 'application/pdf');

@@ -981,6 +981,11 @@
 
             </div><!-- End character-building -->
         </div><!-- End characterSheetSection -->
+
+        <footer class="site-footer">
+            Based on the first version of this project:
+            <a href="https://github.com/ArndRosemeier/Cosmere-character-sheet" target="_blank" rel="noopener noreferrer">ArndRosemeier/Cosmere-character-sheet</a>
+        </footer>
     </div><!-- End container -->
 
     <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="app.handleFileImport(event)">
@@ -1340,6 +1345,46 @@
                 <div id="appDialogError" class="app-dialog-error hidden"></div>
                 <div id="appDialogActions" class="app-dialog-actions"></div>
             </form>
+        </div>
+    </div>
+
+    <!-- Simplified PDF Export Options Modal -->
+    <div id="simplifiedPdfModal" class="app-dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="simplifiedPdfModalTitle" onclick="if (event.target === this) app.closeSimplifiedPdfModal()">
+        <div class="app-dialog-content is-wide">
+            <div class="app-dialog-header">
+                <h2 id="simplifiedPdfModalTitle">Simplified PDF Options</h2>
+                <button type="button" class="modal-close" onclick="app.closeSimplifiedPdfModal()" aria-label="Close dialog">&times;</button>
+            </div>
+            <div class="pdf-options-body">
+                <div class="pdf-options-section">
+                    <div class="pdf-options-label">Page Size (Portrait)</div>
+                    <div class="pdf-size-options">
+                        <label class="pdf-size-choice">
+                            <input type="radio" name="simplifiedPdfPageSize" value="a4" checked>
+                            <span><strong>A4 Portrait</strong> <small>(210 &times; 297 mm, 3 talent columns)</small></span>
+                        </label>
+                        <label class="pdf-size-choice">
+                            <input type="radio" name="simplifiedPdfPageSize" value="a5">
+                            <span><strong>A5 Portrait</strong> <small>(148 &times; 210 mm, 2 talent columns)</small></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="pdf-options-section">
+                    <div class="pdf-talent-toolbar">
+                        <span class="pdf-options-label">Include talent explanation text</span>
+                        <div class="pdf-talent-toolbar-actions">
+                            <button type="button" class="pdf-mini-btn" onclick="app.setAllSimplifiedTalentDescriptions(true)">All</button>
+                            <button type="button" class="pdf-mini-btn" onclick="app.setAllSimplifiedTalentDescriptions(false)">None</button>
+                        </div>
+                    </div>
+                    <p class="pdf-options-hint">Checked talents show their full description. Unchecked talents print as name-only boxes.</p>
+                    <div id="simplifiedPdfTalentList" class="pdf-talent-checklist"></div>
+                </div>
+                <div class="app-dialog-actions">
+                    <button type="button" class="app-dialog-btn-secondary" onclick="app.closeSimplifiedPdfModal()">Cancel</button>
+                    <button type="button" class="app-dialog-btn-primary" onclick="app.confirmSimplifiedPdfExport()">Export PDF</button>
+                </div>
+            </div>
         </div>
     </div>
 

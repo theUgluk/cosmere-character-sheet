@@ -141,6 +141,7 @@ describe('js/rules-engine.js', () => {
             assert.ok(Array.isArray(legacy.grants));
             assert.ok(Array.isArray(legacy.surgeTalents));
             assert.ok(legacy.talents.includes(`${heroic.id}_${heroic.keyTalent.id}`));
+            assert.deepEqual(plain(legacy.pdfOptions), { pageSize: 'a4', compactTalents: [] });
         });
 
         it('cleans up path talents and surges in cascadeCleanup when a path is removed', () => {

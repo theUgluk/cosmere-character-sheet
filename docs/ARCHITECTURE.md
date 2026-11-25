@@ -122,6 +122,8 @@ Each entry in `app.characters` (serialized to `localStorage`) has the following 
   - `languages`: Array of language strings
   - `portrait`: JPEG Data URL or `null`
   - `characterDetails`: `{ age, gender, height, weight, appearance, backstory }`
+- Export Preferences:
+  - `pdfOptions`: `{ pageSize: 'a4' | 'a5', compactTalents: string[] }` (simplified PDF portrait page size and lowercase names of talents exported as name-only)
 
 ## Browser Persistence Keys (`localStorage`)
 

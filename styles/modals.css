@@ -346,3 +346,134 @@
 .app-dialog-btn-secondary:hover {
     background-color: #d2d2d2;
 }
+
+/* Simplified PDF Options Modal */
+.pdf-options-body {
+    padding: 16px 20px 20px;
+}
+
+.pdf-options-section {
+    margin-bottom: 16px;
+}
+
+.pdf-options-label {
+    font-size: 0.9em;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.pdf-options-hint {
+    font-size: 0.82em;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+}
+
+.pdf-size-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pdf-size-choice {
+    flex: 1 1 200px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    background: #fff;
+    font-size: 0.9em;
+}
+
+.pdf-size-choice:hover {
+    border-color: var(--primary-color);
+}
+
+.pdf-size-choice small {
+    color: var(--text-secondary);
+}
+
+.pdf-talent-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.pdf-talent-toolbar .pdf-options-label {
+    margin-bottom: 0;
+}
+
+.pdf-talent-toolbar-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.pdf-mini-btn {
+    padding: 3px 10px;
+    font-size: 0.8em;
+    background: #ececec;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.pdf-mini-btn:hover {
+    background: #dfdfdf;
+    transform: none;
+    box-shadow: none;
+}
+
+.pdf-talent-checklist {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px;
+    background: #fafafa;
+}
+
+.pdf-talent-check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.88em;
+}
+
+.pdf-talent-check-item:hover {
+    background: #efefef;
+}
+
+.pdf-talent-check-item input[type="checkbox"] {
+    margin-top: 3px;
+    cursor: pointer;
+}
+
+.pdf-talent-check-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.pdf-talent-check-desc {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pdf-talent-empty {
+    padding: 10px;
+    color: var(--text-secondary);
+    font-size: 0.88em;
+    text-align: center;
+}

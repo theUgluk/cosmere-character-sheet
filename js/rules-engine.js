@@ -246,6 +246,14 @@
             if (!char.characterDetails || typeof char.characterDetails !== 'object') {
                 char.characterDetails = { age: '', gender: '', height: '', weight: '', appearance: '', backstory: '' };
             }
+            if (!char.pdfOptions || typeof char.pdfOptions !== 'object') {
+                char.pdfOptions = { pageSize: 'a4', compactTalents: [] };
+            } else {
+                char.pdfOptions.pageSize = char.pdfOptions.pageSize === 'a5' ? 'a5' : 'a4';
+                if (!Array.isArray(char.pdfOptions.compactTalents)) {
+                    char.pdfOptions.compactTalents = [];
+                }
+            }
 
             // Retroactively grant heroic key talents for any path that doesn't have it.
             // Older saves never recorded these, so prereq checks for non-key talents fail.

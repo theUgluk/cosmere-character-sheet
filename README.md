@@ -31,3 +31,7 @@ A standalone, zero-build character sheet web application for the **Cosmere RPG (
 - **Architecture & Contributing**: [AGENTS.md](AGENTS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - **User Guides**: [docs/guides/USAGE.md](docs/guides/USAGE.md), [docs/guides/BEGINNER_GUIDE.md](docs/guides/BEGINNER_GUIDE.md), [docs/guides/DICE_ROLLER_GUIDE.md](docs/guides/DICE_ROLLER_GUIDE.md), [docs/guides/CHANGELOG.md](docs/guides/CHANGELOG.md)
 - **Historical Notes**: [docs/archive/](docs/archive/)
+
+## Credits
+
+This project is based on the first version of the Cosmere Character Sheet created by Arnd Rosemeier: [ArndRosemeier/Cosmere-character-sheet](https://github.com/ArndRosemeier/Cosmere-character-sheet).
